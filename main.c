@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "channel.h"
 #include "messages.h"
 
 void print_usage(void);
@@ -11,7 +12,7 @@ void print_delivery(SeqMessage *);
 int main(int argc, char **argv)
 {
         int count = -1;
-        int port = -1;
+        char *port = NULL;
         char *hostfile = NULL;
         int opt;
         char options[] = { "c:h:p:" };
@@ -28,8 +29,8 @@ int main(int argc, char **argv)
                                 fprintf(stderr, "Hostfile is %s\n", hostfile);
                                 break;
                         case 'p':
-                                port = atoi(optarg);
-                                fprintf(stderr, "Port is %d\n", port);
+                                port = optarg;
+                                fprintf(stderr, "Port is %s\n", port);
                                 break;
                         default:
                                 fprintf(stderr, "Unknown option, committing sepuku...\n");
@@ -37,10 +38,12 @@ int main(int argc, char **argv)
                 }
         }
 
-        if (count < 0 || port < 0 || NULL == hostfile) {
+        if (count < 0 || NULL == port || NULL == hostfile) {
                 print_usage();
                 goto err;
         }
+
+        ch_init(hostfile, port);
 
         return 0;
 err:

@@ -1,29 +1,46 @@
+#include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include "channel.h"
 
 static int sk = -1;
-static struct sockaddr_in skaddr = { 0 };
+static struct addrinfo hints, *skaddr;
 
 int
-ch_init(char *hostfile, int port)
+ch_init(char *hostfile, char *port)
 {
         // TODO read hostfile
 
-        skaddr.sin_family = AF_INET;
-        skaddr.sin_port = port;
-        skaddr.sin_addr.s_addr = INADDR_ANY;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM;
+        hints.ai_flags = AI_PASSIVE;
 
-        if ((sk = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+        if (getaddrinfo(NULL, port, &hints, &skaddr)) {
+                perror("Unable to getaddrinfo()\n");
+                return -1;
+        }
+        if ((sk = socket(skaddr->ai_family, skaddr->ai_socktype, skaddr->ai_protocol)) == -1) {
                 perror("Unable to create socket\n");
                 return -1;
         }
-        if (bind(sk, (struct sockaddr *)&skaddr, sizeof(skaddr)) == -1) {
+        if (bind(sk, skaddr->ai_addr, skaddr->ai_addrlen) == -1) {
                 perror("Unable to bind socket\n");
                 return -1;
         }
+
+        return 0;
+}
+
+int
+ch_fini(void)
+{
+        // TODO
+        return -1;
 }
 
 int
