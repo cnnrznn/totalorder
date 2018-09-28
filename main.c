@@ -1,6 +1,9 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+#include "messages.h"
 
 void print_usage(void);
 
@@ -41,6 +44,13 @@ int main(int argc, char **argv)
         return 0;
 err:
         return 1;
+}
+
+void
+printDelivery(SeqMessage *sm)
+{
+        printf("%u: Processed message %u from sender %u with seq (%u, %u)\n",
+                getpid(), sm->msg_id, sm->sender, sm->final_seq, sm->final_seq_proposer);
 }
 
 void
