@@ -6,6 +6,7 @@
 #include "messages.h"
 
 void print_usage(void);
+void print_delivery(SeqMessage *);
 
 int main(int argc, char **argv)
 {
@@ -47,7 +48,7 @@ err:
 }
 
 void
-printDelivery(SeqMessage *sm)
+print_delivery(SeqMessage *sm)
 {
         printf("%u: Processed message %u from sender %u with seq (%u, %u)\n",
                 getpid(), sm->msg_id, sm->sender, sm->final_seq, sm->final_seq_proposer);
