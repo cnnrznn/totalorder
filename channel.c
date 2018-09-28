@@ -44,6 +44,25 @@ ch_fini(void)
 }
 
 int
+ch_recv()
+{
+        char msg[MSGLEN + 1] = { 0 };
+        struct sockaddr_storage from;
+        int fromlen = sizeof(struct sockaddr_storage);
+        int flags = 0;
+        int n;
+
+        if ((n = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) == -1) {
+                perror("Error receiving UDP packet");
+                return -1;
+        }
+
+        fprintf(stderr, "%s\n", msg);
+
+        return n;
+}
+
+int
 ch_broadcast(char *msg, int len)
 {
         return -1;

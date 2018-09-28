@@ -45,6 +45,10 @@ int main(int argc, char **argv)
 
         ch_init(hostfile, port);
 
+        while (1) {
+                ch_recv();
+        }
+
         return 0;
 err:
         return 1;
