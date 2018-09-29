@@ -12,10 +12,13 @@ void print_delivery(SeqMessage *);
 int main(int argc, char **argv)
 {
         int count = -1;
+        int n_sent = 0;;
         char *port = NULL;
         char *hostfile = NULL;
         int opt;
         char options[] = { "c:h:p:" };
+        DataMessage dm;
+        SeqMessage sm;
 
         while ((opt = getopt(argc, argv,  options)) != -1) {
                 switch (opt) {
@@ -46,7 +49,18 @@ int main(int argc, char **argv)
         ch_init(hostfile, port);
 
         while (1) {
-                ch_recv();
+                if (n_sent < count) {
+                        dm.type = 1;
+                        dm.sender = getpid(); // TODO identify myself
+                        dm.msg_id = n_sent;
+                        dm.data = rand();
+
+                        ch_send(dm);
+                }
+                if (ch_recv(&sm)) {
+                        print_delivery(&sm);
+                }
+                sleep(1);
         }
 
         return 0;

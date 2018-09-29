@@ -10,6 +10,13 @@
 
 static int sk = -1;
 static struct addrinfo hints, *skaddr;
+static char *hosts[1024];
+static int nhosts = 0;
+
+static int
+broadcast()
+{
+}
 
 int
 ch_init(char *hostfile, char *port)
@@ -30,14 +37,16 @@ ch_init(char *hostfile, char *port)
 
         while ((strlen = getline(&line, &linelen, f)) > 1) {
                 line[strlen-1] = '\0';
-                fprintf(stderr, "Read '%s(%d:%d)' from hostfile\n", line, linelen, strlen);
+                hosts[nhosts] = malloc(strlen);
+                memcpy(hosts[nhosts], line, strlen);
+                fprintf(stderr, "Read '%s(%lu:%lu)' from hostfile\n", hosts[nhosts], linelen, strlen);
+                nhosts++;
         }
 
         free(line);
         fclose(f);
 
         // allocate socket
-
         memset(&hints, 0, sizeof(hints));
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_DGRAM;
@@ -73,7 +82,16 @@ ch_fini(void)
 }
 
 int
-ch_recv()
+ch_send(DataMessage dm)
+{
+        // TODO
+        // 1. push message into "send queue"
+
+        return -1;
+}
+
+int
+ch_recv(SeqMessage *sm)
 {
         char msg[MSGLEN + 1] = { 0 };
         struct sockaddr_storage from;
@@ -81,18 +99,14 @@ ch_recv()
         int flags = 0;
         int n;
 
-        if ((n = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) == -1) {
-                perror("Error receiving UDP packet");
-                return -1;
-        }
+        // 1. if there is a message in the send queue
+        // 1.a. if haven't received all ack's, broadcast
+        // 1.b. if haven't received all final_acks's, send calculate and send final_seq
+        // 1.c. if received all final_acks, remove from queue
+        // 2. try to recv a message
+        // 2.a. if the message is a data message, add it to the undeliverable queue (if it isn't there already) and ack it
+        // 2.b. if the message is an ack, turn on "received" flag for the sender for that message
+        // 2.c. if the message is a final seq, deliver the message (if we havent already) and send a final_ack
 
-        fprintf(stderr, "%s\n", msg);
-
-        return n;
-}
-
-int
-ch_broadcast(char *msg, int len)
-{
-        return -1;
+        return 0;
 }
