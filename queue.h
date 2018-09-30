@@ -2,7 +2,7 @@
 #define _QUEUE_H
 
 typedef struct {
-        void** q;
+        void** arr;
         size_t size;
         size_t n;
 } queue;
