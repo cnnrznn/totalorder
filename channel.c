@@ -7,11 +7,23 @@
 #include <unistd.h>
 
 #include "channel.h"
+#include "queue.h"
 
 static int sk = -1;
 static struct addrinfo hints, *skaddr;
 static char *hosts[1024];
 static int nhosts = 0;
+
+static void* sendq = NULL;
+static int sendq_last = 0;
+static void* recvq = NULL;
+
+#define QSIZE 1024
+
+typedef struct {
+        DataMessage dm;
+        int nacks;
+} sendq_elem;
 
 static int
 broadcast()
@@ -65,6 +77,10 @@ ch_init(char *hostfile, char *port)
                 goto err_addr;
         }
 
+        // allocate queues
+        sendq = q_alloc(QSIZE);
+        recvq = q_alloc(QSIZE);
+
         return 0;
 err_addr:
         freeaddrinfo(skaddr);
@@ -84,10 +100,11 @@ ch_fini(void)
 int
 ch_send(DataMessage dm)
 {
-        // TODO
-        // 1. push message into "send queue"
+        sendq_elem *e = malloc(sizeof(sendq_elem));
+        e->dm = dm;
+        e->nacks = 0;
 
-        return -1;
+        q_push(sendq, e);
 }
 
 int
