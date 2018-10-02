@@ -185,26 +185,23 @@ ch_recv(int *res)
         struct sockaddr_in *addr;
         uint32_t type;
 
-        process_sendq();
+        // try to recv a message
+        if ((ret = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) > 0) {
+                addr = (struct sockaddr_in *)&from;
+                type = *((uint32_t*)msg);
 
-        // 2. try to recv a message
+                recvq_elem *re = malloc(sizeof(recvq_elem));
+                memcpy(re->msg, msg, MSGLEN);
+                re->type = type;
+                re->dm = (1 == type) ? (DataMessage*)re->msg : NULL;
+                re->am = (2 == type) ? (AckMessage*)re->msg : NULL;
+                re->sm = (3 == type) ? (SeqMessage*)re->msg : NULL;
 
-        if ((ret = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) <= 0) {
-                return -1;
+                q_push(recvq, re);
         }
 
-        addr = (struct sockaddr_in *)&from;
-        type = *((uint32_t*)msg);
-
-        recvq_elem *re = malloc(sizeof(recvq_elem));
-        memcpy(re->msg, msg, MSGLEN);
-        re->type = type;
-        re->dm = (1 == type) ? (DataMessage*)re->msg : NULL;
-        re->am = (2 == type) ? (AckMessage*)re->msg : NULL;
-        re->sm = (3 == type) ? (SeqMessage*)re->msg : NULL;
-
-        q_push(recvq, re);
-
+        // process the asynchronous queues
+        process_sendq();
         process_recvq();
 
         return -1;
