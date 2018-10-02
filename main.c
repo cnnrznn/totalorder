@@ -1,10 +1,10 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "channel.h"
-#include "messages.h"
 
 void print_usage(void);
 void print_delivery(SeqMessage *);
@@ -18,8 +18,8 @@ int main(int argc, char **argv)
         int id = -1;
         int opt;
         char options[] = { "c:h:p:i:" };
-        DataMessage dm;
-        SeqMessage sm;
+
+        int data;
 
         while ((opt = getopt(argc, argv,  options)) != -1) {
                 switch (opt) {
@@ -55,32 +55,22 @@ int main(int argc, char **argv)
         if (ch_init(hostfile, port, id))
                 goto err;
 
+        srand(time(NULL));
+
         while (1) {
                 if (n_sent < count) {
-                        dm.type = 1;
-                        dm.sender = id; // TODO identify myself
-                        dm.msg_id = n_sent;
-                        dm.data = rand();
-
-                        ch_send(dm);
+                        ch_send(rand());
                         n_sent++;
                 }
-                //if (ch_recv(&sm)) {
-                //        print_delivery(&sm);
-                //}
+                if (ch_recv(&data)) {
+                        // handle error, ignore
+                }
                 sleep(1);
         }
 
         return 0;
 err:
         return 1;
-}
-
-void
-print_delivery(SeqMessage *sm)
-{
-        printf("%u: Processed message %u from sender %u with seq (%u, %u)\n",
-                getpid(), sm->msg_id, sm->sender, sm->final_seq, sm->final_seq_proposer);
 }
 
 void

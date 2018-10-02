@@ -7,7 +7,7 @@
 
 int ch_init(char *hostfile, char *port, int id);
 int ch_fini(void);
-int ch_send(DataMessage);
-int ch_recv(SeqMessage *);
+int ch_send(int);
+int ch_recv(int*);
 
 #endif /* _CHANNEL_H */

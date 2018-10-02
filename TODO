@@ -1,0 +1,5 @@
+EXTRAS:
+        1. put channel on separate thread
+                - don't disturb application execution by blocking
+        2. consider invasion
+                - ignore packets from outsiders

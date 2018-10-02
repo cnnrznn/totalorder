@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -10,6 +11,8 @@
 #include "queue.h"
 
 #define HOSTS_MAX 1024
+#define QSIZE 1024
+#define GARBAGE 1337
 
 static int sk = -1;
 static struct addrinfo hints, *skaddr;
@@ -19,20 +22,64 @@ static int nhosts = 0;
 static int id = -1;
 
 static queue* sendq = NULL;
-static int sendq_last = 0;
 static queue* recvq = NULL;
 
-#define QSIZE 1024
+static int seq = 0;
 
 typedef struct {
         DataMessage dm;
-        char *acks, *facks;
-        char acked, facked;
+        char *acks;
+        char acked;
 } sendq_elem;
+
+typedef struct {
+        char msg[MSGLEN];
+        uint32_t type;
+        DataMessage *dm;
+        AckMessage *am;
+        SeqMessage *sm;
+} recvq_elem;
 
 static int
 broadcast()
 {
+}
+
+static void
+process_sendq()
+{
+        int i;
+        sendq_elem *se = NULL;
+
+        // 1. if there is a message in the send queue
+        if ((se = q_peek(sendq))) {
+                if (0 == se->acked) {
+                        for (i=0; i<nhosts; i++) {
+                                if (0 == se->acks[i]) {
+                                        sendto(sk, &se->dm, sizeof(DataMessage), 0,
+                                                        hostaddrs[i].ai_addr, hostaddrs[i].ai_addrlen);
+                                }
+                        }
+                }
+                else {
+                        // 1.b. broadcast decision to group
+                        // TODO
+
+                        // 1.c. if received all final_acks, remove from queue
+                        q_pop(sendq);
+
+                        free(se->acks);
+                        free(se);
+                }
+        }
+}
+
+static void
+process_recvq()
+{
+        // 2.a. if the message is a data message, add it to the undeliverable queue (if it isn't there already) and ack it
+        // 2.b. if the message is an ack, turn on "received" flag for the sender for that message
+        // 2.c. if the message is a final seq, deliver the message (if we havent already) and send a final_ack
 }
 
 int
@@ -114,55 +161,51 @@ ch_fini(void)
 }
 
 int
-ch_send(DataMessage dm)
+ch_send(int data)
 {
         sendq_elem *e = malloc(sizeof(sendq_elem));
-        e->dm = dm;
+        e->dm.type = 1;
+        e->dm.sender = id;
+        e->dm.msg_id = GARBAGE;
+        e->dm.data = data;
         e->acks = calloc(nhosts, sizeof(char));
-        e->facks = calloc(nhosts, sizeof(char));
         e->acked = 0;
-        e->facked = 0;
 
         q_push(sendq, e);
 }
 
 int
-ch_recv(SeqMessage *sm)
+ch_recv(int *res)
 {
         char msg[MSGLEN + 1] = { 0 };
         struct sockaddr_storage from;
         int fromlen = sizeof(struct sockaddr_storage);
-        int flags = 0;
-        int n;
-        sendq_elem *se;
-        int i;
+        int flags = MSG_DONTWAIT;
+        ssize_t ret;
+        struct sockaddr_in *addr;
+        uint32_t type;
 
-        // 1. if there is a message in the send queue
-        if ((se = q_peek(sendq))) {
-                if (0 == se->acked) {
-                        for (i=0; i<nhosts; i++) {
-                                if (0 == se->acks[i]) {
-                                        sendto(sk, &se->dm, sizeof(DataMessage), 0,
-                                                        NULL, 0);
-                                }
-                        }
-                }
-                else if (0 == se->facked) {
-                        // 1.b. if haven't received all final_acks's, calculate and send final_seq
-                } else {
-                        // 1.c. if received all final_acks, remove from queue
-                        q_pop(sendq);
-
-                        free(se->acks);
-                        free(se->facks);
-                        free(se);
-                }
-        }
+        process_sendq();
 
         // 2. try to recv a message
-        // 2.a. if the message is a data message, add it to the undeliverable queue (if it isn't there already) and ack it
-        // 2.b. if the message is an ack, turn on "received" flag for the sender for that message
-        // 2.c. if the message is a final seq, deliver the message (if we havent already) and send a final_ack
 
-        return 0;
+        if ((ret = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) <= 0) {
+                return -1;
+        }
+
+        addr = (struct sockaddr_in *)&from;
+        type = *((uint32_t*)msg);
+
+        recvq_elem *re = malloc(sizeof(recvq_elem));
+        memcpy(re->msg, msg, MSGLEN);
+        re->type = type;
+        re->dm = (1 == type) ? (DataMessage*)re->msg : NULL;
+        re->am = (2 == type) ? (AckMessage*)re->msg : NULL;
+        re->sm = (3 == type) ? (SeqMessage*)re->msg : NULL;
+
+        q_push(recvq, re);
+
+        process_recvq();
+
+        return -1;
 }
