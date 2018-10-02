@@ -23,6 +23,7 @@ static int id = -1;
 
 static queue* sendq = NULL;
 static queue* recvq = NULL;
+static queue* holdq = NULL;
 
 static int seq = 0;
 
@@ -40,6 +41,9 @@ typedef struct {
         SeqMessage *sm;
 } recvq_elem;
 
+typedef struct {
+} holdq_elem;
+
 static int
 broadcast()
 {
@@ -52,31 +56,63 @@ process_sendq()
         sendq_elem *se = NULL;
 
         // 1. if there is a message in the send queue
-        if ((se = q_peek(sendq))) {
-                if (0 == se->acked) {
-                        for (i=0; i<nhosts; i++) {
-                                if (0 == se->acks[i]) {
-                                        sendto(sk, &se->dm, sizeof(DataMessage), 0,
-                                                        hostaddrs[i].ai_addr, hostaddrs[i].ai_addrlen);
-                                }
+        if (!(se = q_peek(sendq)))
+                return;
+
+        if (0 == se->acked) {
+                for (i=0; i<nhosts; i++) {
+                        if (0 == se->acks[i]) {
+                                sendto(sk, &se->dm, sizeof(DataMessage), 0,
+                                                hostaddrs[i].ai_addr, hostaddrs[i].ai_addrlen);
                         }
                 }
-                else {
-                        // 1.b. broadcast decision to group
-                        // TODO
+        }
+        else {
+                // 1.b. broadcast decision to group
+                // TODO
 
-                        // 1.c. if received all final_acks, remove from queue
-                        q_pop(sendq);
+                // 1.c. if received all final_acks, remove from queue
+                q_pop(sendq);
 
-                        free(se->acks);
-                        free(se);
-                }
+                free(se->acks);
+                free(se);
         }
 }
 
 static void
 process_recvq()
 {
+        recvq_elem *re = NULL;
+        holdq_elem *he, other;
+
+        if (!(re = q_pop(recvq)))
+                return;
+
+        switch (re->type) {
+        case 1:                 // DataMessage
+                // set 'other'
+
+                if (!(he = q_search(holdq, other))) {
+                        // if not in holdq, put there
+                }
+                // ack
+                break;
+        case 2:                 // AckMessage
+                // set acked flag from recipient
+                // if all acks received, set 'acked' flag
+                break;
+        case 3:                 // SeqMessage
+                // assign DataMessage the sequence number
+                // reorder holdq
+                // deliver messages
+                break;
+        default:
+                fprintf(stderr, "Received unexpected message type\n");
+                break;
+        }
+
+        free(re);
+
         // 2.a. if the message is a data message, add it to the undeliverable queue (if it isn't there already) and ack it
         // 2.b. if the message is an ack, turn on "received" flag for the sender for that message
         // 2.c. if the message is a final seq, deliver the message (if we havent already) and send a final_ack
@@ -142,6 +178,7 @@ ch_init(char *hostfile, char *port, int _id)
         // allocate queues
         sendq = q_alloc(QSIZE);
         recvq = q_alloc(QSIZE);
+        holdq = q_alloc(QSIZE);
 
         fprintf(stderr, "ch_init: success\n");
         return 0;
