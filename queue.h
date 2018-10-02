@@ -11,5 +11,7 @@ queue* q_alloc(size_t);
 void q_free(queue*);
 
 int q_push(queue*, void*);
+void* q_pop(queue*);
+void* q_peek(queue*);
 
 #endif /*_QUEUE_H */

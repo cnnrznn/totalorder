@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "queue.h"
@@ -10,6 +11,36 @@ q_push(queue* q, void* e)
                 abort(); // play it safe
 
         q->arr[q->n++] = e;
+
+        fprintf(stderr, "Queue contains %lu\n", q->n);
+}
+
+void*
+q_pop(queue* q)
+{
+        void* ret;
+        int i;
+
+        if (q->size <= 0)
+                return NULL;
+
+        ret = q->arr[0];
+
+        for (i=0; i<q->n-1; i++)
+                q->arr[i] = q->arr[i+1];
+
+        q->n--;
+
+        return ret;
+}
+
+void*
+q_peek(queue* q)
+{
+        if (q->size <= 0)
+                return NULL;
+
+        return q->arr[0];
 }
 
 queue*

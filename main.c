@@ -15,8 +15,9 @@ int main(int argc, char **argv)
         int n_sent = 0;;
         char *port = NULL;
         char *hostfile = NULL;
+        int id = -1;
         int opt;
-        char options[] = { "c:h:p:" };
+        char options[] = { "c:h:p:i:" };
         DataMessage dm;
         SeqMessage sm;
 
@@ -35,31 +36,38 @@ int main(int argc, char **argv)
                                 port = optarg;
                                 fprintf(stderr, "Port is %s\n", port);
                                 break;
+                        case 'i':
+                                id = atoi(optarg);
+                                fprintf(stderr, "ID is %d\n", id);
+                                break;
                         default:
                                 fprintf(stderr, "Unknown option, committing sepuku...\n");
                                 goto err;
                 }
         }
 
-        if (count < 0 || NULL == port || NULL == hostfile) {
+        if (count < 0 || NULL == port || NULL == hostfile ||
+                        id < 0) {
                 print_usage();
                 goto err;
         }
 
-        ch_init(hostfile, port);
+        if (ch_init(hostfile, port, id))
+                goto err;
 
         while (1) {
                 if (n_sent < count) {
                         dm.type = 1;
-                        dm.sender = getpid(); // TODO identify myself
+                        dm.sender = id; // TODO identify myself
                         dm.msg_id = n_sent;
                         dm.data = rand();
 
                         ch_send(dm);
+                        n_sent++;
                 }
-                if (ch_recv(&sm)) {
-                        print_delivery(&sm);
-                }
+                //if (ch_recv(&sm)) {
+                //        print_delivery(&sm);
+                //}
                 sleep(1);
         }
 
