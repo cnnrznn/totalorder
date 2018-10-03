@@ -29,6 +29,7 @@ static queue* holdq = NULL;
 
 typedef struct {
         DataMessage dm;
+        SeqMessage sm;
         char *acks, *facks;
         char acked, facked;
 } sendq_elem;
@@ -77,11 +78,13 @@ process_sendq()
         int i;
         sendq_elem *se = NULL;
 
+again:
         // 1. if there is a message in the send queue
         if (!(se = q_peek(sendq)))
                 return;
 
         if (0 == se->acked) {
+                // unicast message to those who haven't ack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->acks[i]) {
                                 sendto(sk, &se->dm, sizeof(DataMessage), 0,
@@ -90,18 +93,23 @@ process_sendq()
                 }
         }
         else if (0 == se->facked) {
-                // TODO broadcast final_seq to everyone
+                // unicast final_seq to those who haven't fack'd
+                for (i=0; i<nhosts; i++) {
+                        if (0 == se->facks[i]) {
+                                sendto(sk, &se->sm, sizeof(SeqMessage), 0,
+                                                hostaddrs[i].ai_addr, hostaddrs[i].ai_addrlen);
+                        }
+                }
         }
         else {
-                // 1.b. broadcast decision to group
-                // TODO
-
                 // 1.c. if received all final_acks, remove from queue
                 q_pop(sendq);
 
                 free(se->acks);
                 free(se->facks);
                 free(se);
+
+                goto again;
         }
 }
 
