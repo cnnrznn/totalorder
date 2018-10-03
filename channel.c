@@ -31,7 +31,7 @@ typedef struct {
         DataMessage dm;
         SeqMessage sm;
         char *acks, *facks;
-        char acked, facked;
+        size_t nacks, nfacks;
 } sendq_elem;
 
 typedef struct {
@@ -44,7 +44,10 @@ typedef struct {
 
 typedef struct {
         DataMessage dm;
+        AckMessage am;
+        FinMessage fm;
         uint32_t final_seq;
+        char deliverable;
 } holdq_elem;
 
 static char
@@ -53,7 +56,9 @@ comp_holdq_elem(void *a, void *b)
         holdq_elem *x = a;
         holdq_elem *y = b;
 
-        if (x->final_seq < y->final_seq)
+        if (x->dm.sender == y->dm.sender && x->dm.msg_id == y->dm.msg_id)
+                return 0;
+        else if (x->final_seq < y->final_seq)
                 return 1;
         else if (x->final_seq > y->final_seq)
                 return -1;
@@ -61,14 +66,8 @@ comp_holdq_elem(void *a, void *b)
                 return 0;
 }
 
-static char
-comp_holdq_elem_sender(void *a, void *b)
-{
-        return -1;
-}
-
-static int
-broadcast()
+static void
+deliver()
 {
 }
 
@@ -83,7 +82,7 @@ again:
         if (!(se = q_peek(sendq)))
                 return;
 
-        if (0 == se->acked) {
+        if (se->nacks < nhosts) {
                 // unicast message to those who haven't ack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->acks[i]) {
@@ -92,7 +91,7 @@ again:
                         }
                 }
         }
-        else if (0 == se->facked) {
+        else if (se->nfacks < nhosts) {
                 // unicast final_seq to those who haven't fack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->facks[i]) {
@@ -118,6 +117,7 @@ process_recvq()
 {
         recvq_elem *re = NULL;
         holdq_elem *he = NULL, other;
+        sendq_elem *se = NULL;
 
         if (!(re = q_pop(recvq)))
                 return;
@@ -128,19 +128,58 @@ process_recvq()
                 other.dm.sender = re->dm->sender;
                 other.dm.msg_id = re->dm->msg_id;
 
-                if (!(he = q_search(holdq, &other, comp_holdq_elem_sender))) {
+                if (!(he = q_search(holdq, &other, comp_holdq_elem))) {
                         // if not in holdq, put there
+                        he = malloc(sizeof(holdq_elem));
+                        he->dm = *(re->dm);
+                        he->am.type = 2;
+                        he->am.sender = he->dm.sender;
+                        he->am.msg_id = he->dm.msg_id;
+                        he->am.proposed_seq = seq_curr++;
+                        he->am.proposer = id;
+                        he->deliverable = 0;
+                        he->final_seq = -1;
+
+                        q_push(holdq, he);
                 }
-                // ack
-                break;
-        case 2:                 // AckMessage
-                // set acked flag from recipient
-                // if all acks received, set 'acked' flag
+
+                // ack the DataMessage
+                sendto(sk, &he->am, sizeof(AckMessage), 0,
+                                hostaddrs[he->am.sender].ai_addr,
+                                hostaddrs[he->am.sender].ai_addrlen);
+
                 break;
         case 3:                 // SeqMessage
-                // assign DataMessage the sequence number
-                // reorder holdq
-                // deliver messages
+                other.dm.sender = re->sm->sender;
+                other.dm.msg_id = re->sm->msg_id;
+
+                if (!(he = q_search(holdq, &other, comp_holdq_elem)))
+                        break;
+
+                he->final_seq = re->sm->final_seq;
+                he->deliverable = 1;
+
+                q_sort(holdq, comp_holdq_elem);
+                deliver();
+                break;
+        case 2:                 // AckMessage
+                if (!(se = q_peek(sendq)))
+                        break; // no messages in sendq
+                if (se->dm.sender != re->am->sender ||
+                                se->dm.msg_id != re->am->msg_id)
+                        break; // already pop'd message if its not the first
+
+                if (0 == se->acks[re->am->proposer]) {
+                        se->nacks++;
+                        se->acks[re->am->proposer] = 1;
+                }
+
+                if (se->sm.final_seq < re->am->proposed_seq) {
+                        se->sm.final_seq = re->am->proposed_seq;
+                        se->sm.final_seq_proposer = re->am->proposer;
+                }
+                break;
+        case 4:                 // FinMessage
                 break;
         default:
                 fprintf(stderr, "Received unexpected message type\n");
@@ -148,10 +187,6 @@ process_recvq()
         }
 
         free(re);
-
-        // 2.a. if the message is a data message, add it to the undeliverable queue (if it isn't there already) and ack it
-        // 2.b. if the message is an ack, turn on "received" flag for the sender for that message
-        // 2.c. if the message is a final seq, deliver the message (if we havent already) and send a final_ack
 }
 
 int
@@ -236,17 +271,29 @@ ch_fini(void)
 int
 ch_send(int data)
 {
-        sendq_elem *e = malloc(sizeof(sendq_elem));
-        e->dm.type = 1;
-        e->dm.sender = id;
-        e->dm.msg_id = msg_curr++;
-        e->dm.data = data;
-        e->acks = calloc(nhosts, sizeof(char));
-        e->acked = 0;
-        e->facks = calloc(nhosts, sizeof(char));
-        e->facked = 0;
+        sendq_elem *se = malloc(sizeof(sendq_elem));
 
-        q_push(sendq, e);
+        se->dm.type = 1;
+        se->dm.sender = id;
+        se->dm.msg_id = msg_curr;
+        se->dm.data = data;
+
+        se->sm.type = 3;
+        se->sm.sender = id;
+        se->sm.msg_id = msg_curr;
+        se->sm.final_seq = -1;
+        se->sm.final_seq_proposer = id;
+
+        se->acks = calloc(nhosts, sizeof(char));
+        se->nacks = 0;
+        se->facks = calloc(nhosts, sizeof(char));
+        se->nfacks = 0;
+
+        q_push(sendq, se);
+
+        msg_curr++;
+
+        return 0;
 }
 
 int
@@ -279,5 +326,5 @@ ch_recv(int *res)
         process_sendq();
         process_recvq();
 
-        return -1;
+        return 0;
 }

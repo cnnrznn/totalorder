@@ -100,7 +100,7 @@ q_alloc(size_t size)
 {
         queue* q = malloc(sizeof(queue));
 
-        q->arr = malloc(size * sizeof(void*));
+        q->arr = calloc(size, sizeof(void*));
         q->size = size;
         q->n = 0;
 
