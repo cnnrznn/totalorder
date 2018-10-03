@@ -20,17 +20,17 @@ static char *hosts[HOSTS_MAX];
 static struct addrinfo hostaddrs[HOSTS_MAX], *tmpaddr;
 static int nhosts = 0;
 static int id = -1;
+static uint32_t msg_curr = 0;
+static uint32_t seq_curr = 0;
 
 static queue* sendq = NULL;
 static queue* recvq = NULL;
 static queue* holdq = NULL;
 
-static int seq = 0;
-
 typedef struct {
         DataMessage dm;
-        char *acks;
-        char acked;
+        char *acks, *facks;
+        char acked, facked;
 } sendq_elem;
 
 typedef struct {
@@ -42,7 +42,29 @@ typedef struct {
 } recvq_elem;
 
 typedef struct {
+        DataMessage dm;
+        uint32_t final_seq;
 } holdq_elem;
+
+static char
+comp_holdq_elem(void *a, void *b)
+{
+        holdq_elem *x = a;
+        holdq_elem *y = b;
+
+        if (x->final_seq < y->final_seq)
+                return 1;
+        else if (x->final_seq > y->final_seq)
+                return -1;
+        else
+                return 0;
+}
+
+static char
+comp_holdq_elem_sender(void *a, void *b)
+{
+        return -1;
+}
 
 static int
 broadcast()
@@ -67,6 +89,9 @@ process_sendq()
                         }
                 }
         }
+        else if (0 == se->facked) {
+                // TODO broadcast final_seq to everyone
+        }
         else {
                 // 1.b. broadcast decision to group
                 // TODO
@@ -75,6 +100,7 @@ process_sendq()
                 q_pop(sendq);
 
                 free(se->acks);
+                free(se->facks);
                 free(se);
         }
 }
@@ -83,7 +109,7 @@ static void
 process_recvq()
 {
         recvq_elem *re = NULL;
-        holdq_elem *he, other;
+        holdq_elem *he = NULL, other;
 
         if (!(re = q_pop(recvq)))
                 return;
@@ -91,8 +117,10 @@ process_recvq()
         switch (re->type) {
         case 1:                 // DataMessage
                 // set 'other'
+                other.dm.sender = re->dm->sender;
+                other.dm.msg_id = re->dm->msg_id;
 
-                if (!(he = q_search(holdq, other))) {
+                if (!(he = q_search(holdq, &other, comp_holdq_elem_sender))) {
                         // if not in holdq, put there
                 }
                 // ack
@@ -203,10 +231,12 @@ ch_send(int data)
         sendq_elem *e = malloc(sizeof(sendq_elem));
         e->dm.type = 1;
         e->dm.sender = id;
-        e->dm.msg_id = GARBAGE;
+        e->dm.msg_id = msg_curr++;
         e->dm.data = data;
         e->acks = calloc(nhosts, sizeof(char));
         e->acked = 0;
+        e->facks = calloc(nhosts, sizeof(char));
+        e->facked = 0;
 
         q_push(sendq, e);
 }

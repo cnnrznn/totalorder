@@ -3,6 +3,45 @@
 
 #include "queue.h"
 
+static void
+swap(int a, int b, queue *q)
+{
+        void *tmp = q->arr[a];
+        q->arr[a] = q->arr[b];
+        q->arr[b] = tmp;
+}
+
+static int
+partition(int lo, int hi, queue *q)
+{
+        void *pivot = q->arr[hi];
+        int i, lohi=lo;
+
+        for (i=lo; i<hi; i++) {
+                if (q->comp(q->arr[i], pivot) > 0) {
+                        swap(i, lohi++, q);
+                }
+        }
+        swap(hi, lohi, q);
+
+        return lohi;
+}
+
+static void
+quicksort(int lo, int hi, queue *q)
+{
+        int lohi;
+
+        if (hi < lo) {
+                return;
+        }
+
+        lohi = partition(lo, hi, q);
+
+        quicksort(lo, lohi-1, q);
+        quicksort(lohi+1, hi, q);
+}
+
 int
 q_push(queue* q, void* e)
 {
@@ -41,6 +80,19 @@ q_peek(queue* q)
                 return NULL;
 
         return q->arr[0];
+}
+
+void*
+q_search(queue *q, void *other, char (*comp)(void*,void*))
+{
+        q->comp = comp;
+}
+
+void
+q_sort(queue *q, char (*comp)(void*,void*))
+{
+        q->comp = comp;
+        quicksort(0, q->n-1, q);
 }
 
 queue*
