@@ -52,6 +52,7 @@ typedef struct {
         AckMessage am;
         FinMessage fm;
         uint32_t final_seq;
+        uint32_t final_seq_proposer;
         char deliverable;
 } holdq_elem;
 
@@ -99,7 +100,9 @@ deliver(int *res)
 
         if (he->deliverable) {
                 *res = he->dm.data;
-                fprintf(stdout, "Delivering %d with seq %u\n", *res, he->final_seq);
+                fprintf(stdout, "%d: Processed message %d from sender %d with seq (%d, %d)\n",
+                                id, he->dm.msg_id, he->dm.sender, he->final_seq,
+                                he->final_seq_proposer);
                 q_pop(holdq);
                 free(he);
                 return 0;
@@ -182,7 +185,7 @@ process_recvq()
 
         switch (re->type) {
         case 1:                 // DataMessage
-                fprintf(stdout, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
+                //fprintf(stdout, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
 
                 // set 'other'
                 other.dm.sender = re->dm->sender;
@@ -207,7 +210,7 @@ process_recvq()
 
                         q_push(holdq, he);
 
-                        fprintf(stdout, "Assigning sequence number %u\n", he->am.proposed_seq);
+                        //fprintf(stdout, "Assigning sequence number %u\n", he->am.proposed_seq);
                 }
 
                 // ack the DataMessage
@@ -216,8 +219,8 @@ process_recvq()
                                 hostaddrs[he->am.sender].ai_addrlen);
                 break;
         case 3:                 // SeqMessage
-                fprintf(stdout, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
-                                re->sm->final_seq);
+                //fprintf(stdout, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
+                //                re->sm->final_seq);
 
                 other.dm.sender = re->sm->sender;
                 other.dm.msg_id = re->sm->msg_id;
@@ -227,6 +230,7 @@ process_recvq()
                         break;
 
                 he->final_seq = re->sm->final_seq;
+                he->final_seq_proposer = re->sm->final_seq_proposer;
                 he->deliverable = 1;
 
                 // fin the SeqMessage
@@ -235,7 +239,7 @@ process_recvq()
                                 hostaddrs[he->fm.sender].ai_addrlen);
                 break;
         case 2:                 // AckMessage
-                fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
+                //fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
 
                 if (!(se = q_peek(sendq)))
                         break; // no messages in sendq
@@ -254,7 +258,7 @@ process_recvq()
                 }
                 break;
         case 4:                 // FinMessage
-                fprintf(stdout, "Received FinMessage (%d:%d)\n", re->fm->sender, re->fm->msg_id);
+                //fprintf(stdout, "Received FinMessage (%d:%d)\n", re->fm->sender, re->fm->msg_id);
 
                 if (!(se = q_peek(sendq)))
                         break; // no messages in sendq
@@ -384,7 +388,7 @@ ch_send(int data)
                 se->timeouts[i] = timeout;
         }
 
-        fprintf(stdout, "Multicasting %d\n", data);
+        //fprintf(stdout, "Multicasting %d\n", data);
         q_push(sendq, se);
 
         msg_curr++;
