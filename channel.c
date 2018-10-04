@@ -34,7 +34,7 @@ typedef struct {
         SeqMessage sm;
         char *acks, *facks;
         size_t nacks, nfacks;
-        clock_t *clocks;
+        time_t *timers;
         double *timeouts;
 } sendq_elem;
 
@@ -129,13 +129,13 @@ again:
                 // unicast message to those who haven't ack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->acks[i]) {
-                                tdiff = (clock() - se->clocks[i]) / CLOCKS_PER_SEC;
-                                if (se->timeouts[i] < ((double)clock() - se->clocks[i])/CLOCKS_PER_SEC) {
-                                        fprintf(stderr, "tdiff = %f\n", tdiff);
+                                tdiff = difftime(time(), se->timers[i]);
+                                if (se->timeouts[i] < difftime(time(), se->timers[i])) {
+                                	fprintf(stderr, "tdiff = %f\n", tdiff);
                                         sendto(sk, &se->dm, sizeof(DataMessage), 0,
                                                         hostaddrs[i].ai_addr,
                                                         hostaddrs[i].ai_addrlen);
-                                        se->clocks[i] = clock();
+                                        se->timers[i] = time();
                                 }
                         }
                 }
@@ -144,13 +144,13 @@ again:
                 // unicast final_seq to those who haven't fack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->facks[i]) {
-                                tdiff = (clock() - se->clocks[i]) / CLOCKS_PER_SEC;
-                                if (se->timeouts[i] < ((double)clock() - se->clocks[i])/CLOCKS_PER_SEC) {
+                                tdiff = difftime(time(), se->timers[i]);
+                                if (se->timeouts[i] < difftime(time(), se->timers[i])) {
                                         fprintf(stderr, "tdiff = %f\n", tdiff);
                                         sendto(sk, &se->sm, sizeof(SeqMessage), 0,
                                                         hostaddrs[i].ai_addr,
                                                         hostaddrs[i].ai_addrlen);
-                                        se->clocks[i] = clock();
+                                        se->timers[i] = time();
                                 }
                         }
                 }
@@ -161,7 +161,7 @@ again:
 
                 free(se->acks);
                 free(se->facks);
-                free(se->clocks);
+                free(se->timers);
                 free(se->timeouts);
                 free(se);
 
@@ -185,7 +185,7 @@ process_recvq()
 
         switch (re->type) {
         case 1:                 // DataMessage
-                //fprintf(stdout, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
+                fprintf(stdout, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
 
                 // set 'other'
                 other.dm.sender = re->dm->sender;
@@ -219,8 +219,8 @@ process_recvq()
                                 hostaddrs[he->am.sender].ai_addrlen);
                 break;
         case 3:                 // SeqMessage
-                //fprintf(stdout, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
-                //                re->sm->final_seq);
+        	fprintf(stdout, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
+                                re->sm->final_seq);
 
                 other.dm.sender = re->sm->sender;
                 other.dm.msg_id = re->sm->msg_id;
@@ -239,7 +239,7 @@ process_recvq()
                                 hostaddrs[he->fm.sender].ai_addrlen);
                 break;
         case 2:                 // AckMessage
-                //fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
+                fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
 
                 if (!(se = q_peek(sendq)))
                         break; // no messages in sendq
@@ -258,7 +258,7 @@ process_recvq()
                 }
                 break;
         case 4:                 // FinMessage
-                //fprintf(stdout, "Received FinMessage (%d:%d)\n", re->fm->sender, re->fm->msg_id);
+                fprintf(stdout, "Received FinMessage (%d:%d)\n", re->fm->sender, re->fm->msg_id);
 
                 if (!(se = q_peek(sendq)))
                         break; // no messages in sendq
@@ -324,7 +324,8 @@ ch_init(char *hostfile, char *port, int _id, double _timeout)
         fclose(f);
 
         // allocate socket
-        if (getaddrinfo(NULL, port, &hints, &skaddr)) {
+        fprintf(stderr, "I am %s\n", hosts[id]);
+        if (getaddrinfo(hosts[id], port, &hints, &skaddr)) {
                 perror("Unable to getaddrinfo()");
                 goto err_addr;
         }
@@ -381,14 +382,14 @@ ch_send(int data)
         se->facks = calloc(nhosts, sizeof(char));
         se->nfacks = 0;
 
-        se->clocks = malloc(nhosts * sizeof(clock_t));
+        se->timers = malloc(nhosts * sizeof(time_t));
         se->timeouts = malloc(nhosts * sizeof(double));
         for (i=0; i<nhosts; i++) {
-                se->clocks[i] = clock();
+                se->timers[i] = time();
                 se->timeouts[i] = timeout;
         }
 
-        //fprintf(stdout, "Multicasting %d\n", data);
+        fprintf(stdout, "Multicasting %d\n", data);
         q_push(sendq, se);
 
         msg_curr++;

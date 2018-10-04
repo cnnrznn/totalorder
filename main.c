@@ -70,7 +70,7 @@ int main(int argc, char **argv)
                 if (ch_recv(&data)) {
                         // handle error, ignore
                 }
-                sleep(0.001);
+                sleep(1);
                 fflush(stdout);
         }
 

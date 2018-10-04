@@ -75,8 +75,6 @@ q_push(queue* q, void* e)
                 abort(); // play it safe
 
         q->arr[q->n++] = e;
-
-        fprintf(stderr, "Queue contains %lu\n", q->n);
 }
 
 void*
