@@ -5,7 +5,7 @@
 
 #define MSGLEN 1024
 
-int ch_init(char *hostfile, char *port, int id);
+int ch_init(char *, char *, int, double);
 int ch_fini(void);
 int ch_send(int);
 int ch_recv(int*);

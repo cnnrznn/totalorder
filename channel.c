@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "channel.h"
@@ -20,6 +21,7 @@ static char *hosts[HOSTS_MAX];
 static struct addrinfo hostaddrs[HOSTS_MAX], *tmpaddr;
 static int nhosts = 0;
 static int id = -1;
+static double timeout;
 static uint32_t msg_curr = 0;
 static uint32_t seq_curr = 0;
 
@@ -32,6 +34,8 @@ typedef struct {
         SeqMessage sm;
         char *acks, *facks;
         size_t nacks, nfacks;
+        clock_t *clocks;
+        double *timeouts;
 } sendq_elem;
 
 typedef struct {
@@ -40,6 +44,7 @@ typedef struct {
         DataMessage *dm;
         AckMessage *am;
         SeqMessage *sm;
+        FinMessage *fm;
 } recvq_elem;
 
 typedef struct {
@@ -56,9 +61,7 @@ comp_holdq_elem(void *a, void *b)
         holdq_elem *x = a;
         holdq_elem *y = b;
 
-        if (x->dm.sender == y->dm.sender && x->dm.msg_id == y->dm.msg_id)
-                return 0;
-        else if (x->final_seq < y->final_seq)
+        if (x->final_seq < y->final_seq)
                 return 1;
         else if (x->final_seq > y->final_seq)
                 return -1;
@@ -66,14 +69,48 @@ comp_holdq_elem(void *a, void *b)
                 return 0;
 }
 
-static void
-deliver()
+static char
+comp_holdq_elem_msg(void *a, void *b)
 {
+        holdq_elem *x = a;
+        holdq_elem *y = b;
+
+        if (x->dm.sender < y->dm.sender)
+                return 1;
+        else if (x->dm.sender > y->dm.sender)
+                return -1;
+        else if (x->dm.msg_id < y->dm.msg_id)
+                return 1;
+        else if (x->dm.msg_id > y->dm.msg_id)
+                return -1;
+        else
+                return 0;
+}
+
+static int
+deliver(int *res)
+{
+        holdq_elem *he;
+
+        if (NULL == (he = q_peek(holdq)))
+                return -1;
+
+        if (he->deliverable) {
+                *res = he->dm.data;
+                fprintf(stdout, "Delivering %d\n", *res);
+                q_pop(holdq);
+                free(he);
+                return 0;
+        }
+
+        return -1;
 }
 
 static void
 process_sendq()
 {
+        fprintf(stderr, "Entering process_sendq\n");
+
         int i;
         sendq_elem *se = NULL;
 
@@ -106,6 +143,8 @@ again:
 
                 free(se->acks);
                 free(se->facks);
+                free(se->clocks);
+                free(se->timeouts);
                 free(se);
 
                 goto again;
@@ -115,20 +154,27 @@ again:
 static void
 process_recvq()
 {
+        fprintf(stderr, "Entering process_recvq\n");
+
         recvq_elem *re = NULL;
         holdq_elem *he = NULL, other;
         sendq_elem *se = NULL;
 
-        if (!(re = q_pop(recvq)))
+        if (NULL == (re = q_pop(recvq))) {
+                fprintf(stderr, "No items in recvq\n");
                 return;
+        }
 
         switch (re->type) {
         case 1:                 // DataMessage
+                fprintf(stdout, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
+
                 // set 'other'
                 other.dm.sender = re->dm->sender;
                 other.dm.msg_id = re->dm->msg_id;
 
-                if (!(he = q_search(holdq, &other, comp_holdq_elem))) {
+                q_sort(holdq, comp_holdq_elem_msg);
+                if (!(he = q_search(holdq, &other, comp_holdq_elem_msg))) {
                         // if not in holdq, put there
                         he = malloc(sizeof(holdq_elem));
                         he->dm = *(re->dm);
@@ -137,10 +183,16 @@ process_recvq()
                         he->am.msg_id = he->dm.msg_id;
                         he->am.proposed_seq = seq_curr++;
                         he->am.proposer = id;
+                        he->fm.type = 4;
+                        he->fm.sender = he->dm.sender;
+                        he->fm.msg_id = he->dm.msg_id;
+                        he->fm.proposer = id;
                         he->deliverable = 0;
                         he->final_seq = -1;
 
+                        fprintf(stderr, "Pushing to holdq\n");
                         q_push(holdq, he);
+                        q_sort(holdq, comp_holdq_elem);
                 }
 
                 // ack the DataMessage
@@ -150,19 +202,28 @@ process_recvq()
 
                 break;
         case 3:                 // SeqMessage
+                fprintf(stdout, "Received SeqMessage (%d:%d)\n", re->sm->sender, re->sm->msg_id);
+
                 other.dm.sender = re->sm->sender;
                 other.dm.msg_id = re->sm->msg_id;
 
-                if (!(he = q_search(holdq, &other, comp_holdq_elem)))
+                q_sort(holdq, comp_holdq_elem_msg);
+                if (!(he = q_search(holdq, &other, comp_holdq_elem_msg)))
                         break;
 
                 he->final_seq = re->sm->final_seq;
                 he->deliverable = 1;
 
+                // fin the SeqMessage
+                sendto(sk, &he->fm, sizeof(FinMessage), 0,
+                                hostaddrs[he->am.sender].ai_addr,
+                                hostaddrs[he->am.sender].ai_addrlen);
+
                 q_sort(holdq, comp_holdq_elem);
-                deliver();
                 break;
         case 2:                 // AckMessage
+                fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
+
                 if (!(se = q_peek(sendq)))
                         break; // no messages in sendq
                 if (se->dm.sender != re->am->sender ||
@@ -180,6 +241,18 @@ process_recvq()
                 }
                 break;
         case 4:                 // FinMessage
+                fprintf(stdout, "Received FinMessage (%d:%d)\n", re->fm->sender, re->fm->msg_id);
+
+                if (!(se = q_peek(sendq)))
+                        break; // no messages in sendq
+                if (se->dm.sender != re->fm->sender ||
+                                se->dm.msg_id != re->fm->msg_id)
+                        break; // already pop'd message if its not the first
+
+                if (0 == se->facks[re->fm->proposer]) {
+                        se->nfacks++;
+                        se->facks[re->fm->proposer] = 1;
+                }
                 break;
         default:
                 fprintf(stderr, "Received unexpected message type\n");
@@ -190,7 +263,7 @@ process_recvq()
 }
 
 int
-ch_init(char *hostfile, char *port, int _id)
+ch_init(char *hostfile, char *port, int _id, double _timeout)
 {
         FILE *f;
         size_t linelen = 32;
@@ -203,6 +276,7 @@ ch_init(char *hostfile, char *port, int _id)
         hints.ai_flags = AI_PASSIVE;
 
         id = _id;
+        timeout = _timeout;
 
         // read hostfile
         f = fopen(hostfile, "r");
@@ -271,6 +345,7 @@ ch_fini(void)
 int
 ch_send(int data)
 {
+        int i;
         sendq_elem *se = malloc(sizeof(sendq_elem));
 
         se->dm.type = 1;
@@ -289,6 +364,14 @@ ch_send(int data)
         se->facks = calloc(nhosts, sizeof(char));
         se->nfacks = 0;
 
+        se->clocks = malloc(nhosts * sizeof(clock_t));
+        se->timeouts = malloc(nhosts * sizeof(double));
+        for (i=0; i<nhosts; i++) {
+                se->clocks[i] = clock();
+                se->timeouts[i] = timeout;
+        }
+
+        fprintf(stdout, "Multicasting %d\n", data);
         q_push(sendq, se);
 
         msg_curr++;
@@ -318,7 +401,9 @@ ch_recv(int *res)
                 re->dm = (1 == type) ? (DataMessage*)re->msg : NULL;
                 re->am = (2 == type) ? (AckMessage*)re->msg : NULL;
                 re->sm = (3 == type) ? (SeqMessage*)re->msg : NULL;
+                re->fm = (4 == type) ? (FinMessage*)re->msg : NULL;
 
+                fprintf(stderr, "Pushing to recvq\n");
                 q_push(recvq, re);
         }
 
@@ -326,5 +411,5 @@ ch_recv(int *res)
         process_sendq();
         process_recvq();
 
-        return 0;
+        return deliver(res);
 }
