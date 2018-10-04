@@ -16,7 +16,7 @@ int main(int argc, char **argv)
         char *port = NULL;
         char *hostfile = NULL;
         int id = -1;
-        double timeout = -1;
+        double timeout = 0.0;
         int opt;
         char options[] = { "c:h:p:i:t:" };
 
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
         }
 
         if (count < 0 || NULL == port || NULL == hostfile ||
-                        id < 0 || timeout < 0) {
+                        id < 0) {
                 print_usage();
                 goto err;
         }
@@ -70,7 +70,8 @@ int main(int argc, char **argv)
                 if (ch_recv(&data)) {
                         // handle error, ignore
                 }
-                sleep(0.1);
+                sleep(0.001);
+                fflush(stdout);
         }
 
         return 0;

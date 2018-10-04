@@ -92,12 +92,14 @@ deliver(int *res)
 {
         holdq_elem *he;
 
+        q_sort(holdq, comp_holdq_elem);
+
         if (NULL == (he = q_peek(holdq)))
                 return -1;
 
         if (he->deliverable) {
                 *res = he->dm.data;
-                fprintf(stdout, "Delivering %d\n", *res);
+                fprintf(stdout, "Delivering %d with seq %u\n", *res, he->final_seq);
                 q_pop(holdq);
                 free(he);
                 return 0;
@@ -109,9 +111,10 @@ deliver(int *res)
 static void
 process_sendq()
 {
-        fprintf(stderr, "Entering process_sendq\n");
+        //fprintf(stderr, "Entering process_sendq\n");
 
         int i;
+        double tdiff;
         sendq_elem *se = NULL;
 
 again:
@@ -123,8 +126,14 @@ again:
                 // unicast message to those who haven't ack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->acks[i]) {
-                                sendto(sk, &se->dm, sizeof(DataMessage), 0,
-                                                hostaddrs[i].ai_addr, hostaddrs[i].ai_addrlen);
+                                tdiff = (clock() - se->clocks[i]) / CLOCKS_PER_SEC;
+                                if (se->timeouts[i] < ((double)clock() - se->clocks[i])/CLOCKS_PER_SEC) {
+                                        fprintf(stderr, "tdiff = %f\n", tdiff);
+                                        sendto(sk, &se->dm, sizeof(DataMessage), 0,
+                                                        hostaddrs[i].ai_addr,
+                                                        hostaddrs[i].ai_addrlen);
+                                        se->clocks[i] = clock();
+                                }
                         }
                 }
         }
@@ -132,8 +141,14 @@ again:
                 // unicast final_seq to those who haven't fack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->facks[i]) {
-                                sendto(sk, &se->sm, sizeof(SeqMessage), 0,
-                                                hostaddrs[i].ai_addr, hostaddrs[i].ai_addrlen);
+                                tdiff = (clock() - se->clocks[i]) / CLOCKS_PER_SEC;
+                                if (se->timeouts[i] < ((double)clock() - se->clocks[i])/CLOCKS_PER_SEC) {
+                                        fprintf(stderr, "tdiff = %f\n", tdiff);
+                                        sendto(sk, &se->sm, sizeof(SeqMessage), 0,
+                                                        hostaddrs[i].ai_addr,
+                                                        hostaddrs[i].ai_addrlen);
+                                        se->clocks[i] = clock();
+                                }
                         }
                 }
         }
@@ -154,14 +169,14 @@ again:
 static void
 process_recvq()
 {
-        fprintf(stderr, "Entering process_recvq\n");
+        //fprintf(stderr, "Entering process_recvq\n");
 
         recvq_elem *re = NULL;
         holdq_elem *he = NULL, other;
         sendq_elem *se = NULL;
 
         if (NULL == (re = q_pop(recvq))) {
-                fprintf(stderr, "No items in recvq\n");
+                //fprintf(stderr, "No items in recvq\n");
                 return;
         }
 
@@ -188,21 +203,21 @@ process_recvq()
                         he->fm.msg_id = he->dm.msg_id;
                         he->fm.proposer = id;
                         he->deliverable = 0;
-                        he->final_seq = -1;
+                        he->final_seq = 0;
 
-                        fprintf(stderr, "Pushing to holdq\n");
                         q_push(holdq, he);
-                        q_sort(holdq, comp_holdq_elem);
+
+                        fprintf(stdout, "Assigning sequence number %u\n", he->am.proposed_seq);
                 }
 
                 // ack the DataMessage
                 sendto(sk, &he->am, sizeof(AckMessage), 0,
                                 hostaddrs[he->am.sender].ai_addr,
                                 hostaddrs[he->am.sender].ai_addrlen);
-
                 break;
         case 3:                 // SeqMessage
-                fprintf(stdout, "Received SeqMessage (%d:%d)\n", re->sm->sender, re->sm->msg_id);
+                fprintf(stdout, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
+                                re->sm->final_seq);
 
                 other.dm.sender = re->sm->sender;
                 other.dm.msg_id = re->sm->msg_id;
@@ -216,10 +231,8 @@ process_recvq()
 
                 // fin the SeqMessage
                 sendto(sk, &he->fm, sizeof(FinMessage), 0,
-                                hostaddrs[he->am.sender].ai_addr,
-                                hostaddrs[he->am.sender].ai_addrlen);
-
-                q_sort(holdq, comp_holdq_elem);
+                                hostaddrs[he->fm.sender].ai_addr,
+                                hostaddrs[he->fm.sender].ai_addrlen);
                 break;
         case 2:                 // AckMessage
                 fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
@@ -325,7 +338,7 @@ ch_init(char *hostfile, char *port, int _id, double _timeout)
         recvq = q_alloc(QSIZE);
         holdq = q_alloc(QSIZE);
 
-        fprintf(stderr, "ch_init: success\n");
+        //fprintf(stderr, "ch_init: success\n");
         return 0;
 err_addr:
         freeaddrinfo(skaddr);
@@ -403,7 +416,7 @@ ch_recv(int *res)
                 re->sm = (3 == type) ? (SeqMessage*)re->msg : NULL;
                 re->fm = (4 == type) ? (FinMessage*)re->msg : NULL;
 
-                fprintf(stderr, "Pushing to recvq\n");
+                //fprintf(stderr, "Pushing to recvq\n");
                 q_push(recvq, re);
         }
 
