@@ -369,7 +369,7 @@ ch_send(int data)
         se->sm.type = 3;
         se->sm.sender = id;
         se->sm.msg_id = msg_curr;
-        se->sm.final_seq = -1;
+        se->sm.final_seq = 0;
         se->sm.final_seq_proposer = id;
 
         se->acks = calloc(nhosts, sizeof(char));
