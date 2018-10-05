@@ -285,6 +285,7 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
         size_t linelen = 32;
         ssize_t strlen;
         char *line;
+        int i;
 
         memset(&hints, 0, sizeof(hints));
         hints.ai_family = AF_INET;
@@ -318,6 +319,10 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
                 fprintf(stderr, "Read '%s(%lu:%lu)' from hostfile\n", hosts[nhosts], linelen, strlen);
                 nhosts++;
         }
+
+        for (i=0; i<nhosts; i++) {
+                fprintf(stderr, "Addr %d is %s\n", i, inet_ntoa(((struct sockaddr_in *)hostaddrs[i].ai_addr)->sin_addr));
+        } exit(0);
 
         free(line);
         fclose(f);
