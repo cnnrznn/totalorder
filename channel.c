@@ -319,10 +319,6 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
                 nhosts++;
         }
 
-        for (i=0; i<nhosts; i++) {
-                fprintf(stderr, "Addr %d is %s\n", i, inet_ntoa(((struct sockaddr_in *)&hostaddrs[i])->sin_addr));
-        } exit(0);
-
         free(line);
         fclose(f);
 
