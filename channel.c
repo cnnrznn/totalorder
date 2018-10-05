@@ -184,7 +184,7 @@ process_recvq()
 
         switch (re->type) {
         case 1:                 // DataMessage
-                fprintf(stdout, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
+                fprintf(stderr, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
 
                 // set 'other'
                 other.dm.sender = re->dm->sender;
@@ -217,7 +217,7 @@ process_recvq()
                                 &hostaddrs[he->am.sender], hostaddrslen[he->am.sender]);
                 break;
         case 3:                 // SeqMessage
-        	fprintf(stdout, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
+        	fprintf(stderr, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
                                 re->sm->final_seq);
 
                 other.dm.sender = re->sm->sender;
@@ -236,7 +236,7 @@ process_recvq()
                                 &hostaddrs[he->fm.sender], hostaddrslen[he->fm.sender]);
                 break;
         case 2:                 // AckMessage
-                fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
+                fprintf(stderr, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
 
                 if (!(se = q_peek(sendq)))
                         break; // no messages in sendq
@@ -255,7 +255,7 @@ process_recvq()
                 }
                 break;
         case 4:                 // FinMessage
-                fprintf(stdout, "Received FinMessage (%d:%d)\n", re->fm->sender, re->fm->msg_id);
+                fprintf(stderr, "Received FinMessage (%d:%d)\n", re->fm->sender, re->fm->msg_id);
 
                 if (!(se = q_peek(sendq)))
                         break; // no messages in sendq
@@ -388,7 +388,7 @@ ch_send(int data)
                 se->timeouts[i] = timeout;
         }
 
-        fprintf(stdout, "Multicasting %d\n", data);
+        fprintf(stderr, "Multicasting %d\n", data);
         q_push(sendq, se);
 
         msg_curr++;
