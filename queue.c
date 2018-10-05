@@ -70,9 +70,10 @@ binsearch(queue *q, void *other, int start, int end)
 int
 q_push(queue* q, void* e)
 {
-        // TODO logic to grow queue
-        if (q->size == q->n + 1)
+        if (q->size == q->n + 1) {
                 abort(); // play it safe
+                // TODO realloc()
+        }
 
         q->arr[q->n++] = e;
 }
