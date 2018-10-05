@@ -198,7 +198,7 @@ process_recvq()
                         he->am.type = 2;
                         he->am.sender = he->dm.sender;
                         he->am.msg_id = he->dm.msg_id;
-                        he->am.proposed_seq = seq_curr++;
+                        he->am.proposed_seq = ++seq_curr;
                         he->am.proposer = id;
                         he->fm.type = 4;
                         he->fm.sender = he->dm.sender;
@@ -222,6 +222,9 @@ process_recvq()
 
                 other.dm.sender = re->sm->sender;
                 other.dm.msg_id = re->sm->msg_id;
+
+                if (re->sm->final_seq > seq_curr)
+                        seq_curr = re->sm->final_seq;
 
                 q_sort(holdq, comp_holdq_elem_msg);
                 if (!(he = q_search(holdq, &other, comp_holdq_elem_msg)))
