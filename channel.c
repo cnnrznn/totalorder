@@ -68,6 +68,10 @@ comp_holdq_elem(void *a, void *b)
                 return 1;
         else if (x->final_seq > y->final_seq)
                 return -1;
+	else if (x->final_seq_proposer < y->final_seq_proposer)
+		return 1;
+	else if (x->final_seq_proposer > y->final_seq_proposer)
+		return -1;
         else
                 return 0;
 }
@@ -102,8 +106,8 @@ deliver(int *res)
 
         if (he->deliverable) {
                 *res = he->dm.data;
-                fprintf(stdout, "%d: Processed message %d from sender %d with seq (%d, %d)\n",
-                                id, he->dm.msg_id, he->dm.sender, he->final_seq,
+                fprintf(stdout, "Processed message %d from sender %d with seq (%d, %d)\n",
+                                he->dm.msg_id, he->dm.sender, he->final_seq,
                                 he->final_seq_proposer);
                 q_pop(holdq);
                 free(he);
@@ -222,9 +226,6 @@ process_recvq()
 
                 other.dm.sender = re->sm->sender;
                 other.dm.msg_id = re->sm->msg_id;
-
-                if (re->sm->final_seq > seq_curr)
-                        seq_curr = re->sm->final_seq;
 
                 q_sort(holdq, comp_holdq_elem_msg);
                 if (!(he = q_search(holdq, &other, comp_holdq_elem_msg)))
