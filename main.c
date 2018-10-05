@@ -16,7 +16,7 @@ int main(int argc, char **argv)
         char *port = NULL;
         char *hostfile = NULL;
         int id = -1;
-        double timeout = 0.0;
+        size_t timeout = 0;
         int opt;
         char options[] = { "c:h:p:i:t:" };
 
@@ -42,8 +42,8 @@ int main(int argc, char **argv)
                                 fprintf(stderr, "ID is %d\n", id);
                                 break;
                         case 't':
-                                timeout = atof(optarg);
-                                fprintf(stderr, "timeout is %f\n", timeout);
+                                timeout = atol(optarg);
+                                fprintf(stderr, "timeout is %lu\n", timeout);
                                 break;
                         default:
                                 fprintf(stderr, "Unknown option, committing sepuku...\n");
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
                 if (ch_recv(&data)) {
                         // handle error, ignore
                 }
-                sleep(1);
+                sleep(0.00001);
                 fflush(stdout);
         }
 

@@ -21,7 +21,7 @@ static char *hosts[HOSTS_MAX];
 static struct addrinfo hostaddrs[HOSTS_MAX], *tmpaddr;
 static int nhosts = 0;
 static int id = -1;
-static double timeout;
+static size_t timeout;
 static uint32_t msg_curr = 0;
 static uint32_t seq_curr = 0;
 
@@ -34,7 +34,7 @@ typedef struct {
         SeqMessage sm;
         char *acks, *facks;
         size_t nacks, nfacks;
-        time_t *timers;
+        size_t *timers;
         double *timeouts;
 } sendq_elem;
 
@@ -117,7 +117,6 @@ process_sendq()
         //fprintf(stderr, "Entering process_sendq\n");
 
         int i;
-        double tdiff;
         sendq_elem *se = NULL;
 
 again:
@@ -129,13 +128,13 @@ again:
                 // unicast message to those who haven't ack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->acks[i]) {
-                                tdiff = difftime(time(), se->timers[i]);
-                                if (se->timeouts[i] < difftime(time(), se->timers[i])) {
-                                	fprintf(stderr, "tdiff = %f\n", tdiff);
+                                if (se->timeouts[i] < se->timers[i]) {
                                         sendto(sk, &se->dm, sizeof(DataMessage), 0,
                                                         hostaddrs[i].ai_addr,
                                                         hostaddrs[i].ai_addrlen);
-                                        se->timers[i] = time();
+                                        se->timers[i] = 0;
+                                } else {
+                                        se->timers[i]++;
                                 }
                         }
                 }
@@ -144,13 +143,13 @@ again:
                 // unicast final_seq to those who haven't fack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->facks[i]) {
-                                tdiff = difftime(time(), se->timers[i]);
-                                if (se->timeouts[i] < difftime(time(), se->timers[i])) {
-                                        fprintf(stderr, "tdiff = %f\n", tdiff);
+                                if (se->timeouts[i] < se->timers[i]) {
                                         sendto(sk, &se->sm, sizeof(SeqMessage), 0,
                                                         hostaddrs[i].ai_addr,
                                                         hostaddrs[i].ai_addrlen);
-                                        se->timers[i] = time();
+                                        se->timers[i] = 0;
+                                } else {
+                                        se->timers[i]++;
                                 }
                         }
                 }
@@ -280,7 +279,7 @@ process_recvq()
 }
 
 int
-ch_init(char *hostfile, char *port, int _id, double _timeout)
+ch_init(char *hostfile, char *port, int _id, size_t _timeout)
 {
         FILE *f;
         size_t linelen = 32;
@@ -382,10 +381,10 @@ ch_send(int data)
         se->facks = calloc(nhosts, sizeof(char));
         se->nfacks = 0;
 
-        se->timers = malloc(nhosts * sizeof(time_t));
-        se->timeouts = malloc(nhosts * sizeof(double));
+        se->timers = malloc(nhosts * sizeof(size_t));
+        se->timeouts = malloc(nhosts * sizeof(size_t));
         for (i=0; i<nhosts; i++) {
-                se->timers[i] = time();
+                se->timers[i] = 0;
                 se->timeouts[i] = timeout;
         }
 
