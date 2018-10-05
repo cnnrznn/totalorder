@@ -18,7 +18,9 @@
 static int sk = -1;
 static struct addrinfo hints, *skaddr;
 static char *hosts[HOSTS_MAX];
-static struct addrinfo hostaddrs[HOSTS_MAX], *tmpaddr;
+static struct addrinfo *tmpaddr;
+static struct sockaddr hostaddrs[HOSTS_MAX];
+static size_t hostaddrslen[HOSTS_MAX];
 static int nhosts = 0;
 static int id = -1;
 static size_t timeout;
@@ -130,8 +132,7 @@ again:
                         if (0 == se->acks[i]) {
                                 if (se->timeouts[i] < se->timers[i]) {
                                         sendto(sk, &se->dm, sizeof(DataMessage), 0,
-                                                        hostaddrs[i].ai_addr,
-                                                        hostaddrs[i].ai_addrlen);
+                                                        &hostaddrs[i], hostaddrslen[i]);
                                         se->timers[i] = 0;
                                 } else {
                                         se->timers[i]++;
@@ -145,8 +146,7 @@ again:
                         if (0 == se->facks[i]) {
                                 if (se->timeouts[i] < se->timers[i]) {
                                         sendto(sk, &se->sm, sizeof(SeqMessage), 0,
-                                                        hostaddrs[i].ai_addr,
-                                                        hostaddrs[i].ai_addrlen);
+                                                        &hostaddrs[i], hostaddrslen[i]);
                                         se->timers[i] = 0;
                                 } else {
                                         se->timers[i]++;
@@ -214,8 +214,7 @@ process_recvq()
 
                 // ack the DataMessage
                 sendto(sk, &he->am, sizeof(AckMessage), 0,
-                                hostaddrs[he->am.sender].ai_addr,
-                                hostaddrs[he->am.sender].ai_addrlen);
+                                &hostaddrs[he->am.sender], hostaddrslen[he->am.sender]);
                 break;
         case 3:                 // SeqMessage
         	fprintf(stdout, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
@@ -234,8 +233,7 @@ process_recvq()
 
                 // fin the SeqMessage
                 sendto(sk, &he->fm, sizeof(FinMessage), 0,
-                                hostaddrs[he->fm.sender].ai_addr,
-                                hostaddrs[he->fm.sender].ai_addrlen);
+                                &hostaddrs[he->fm.sender], hostaddrslen[he->fm.sender]);
                 break;
         case 2:                 // AckMessage
                 fprintf(stdout, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
@@ -313,7 +311,8 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
                         perror("Unable to get target addr info for target addr");
                         goto err_addr;
                 }
-                hostaddrs[nhosts] = *tmpaddr;
+                hostaddrs[nhosts] = *(tmpaddr->ai_addr);
+                hostaddrslen[nhosts] = tmpaddr->ai_addrlen;
                 freeaddrinfo(tmpaddr);
 
                 fprintf(stderr, "Read '%s(%lu:%lu)' from hostfile\n", hosts[nhosts], linelen, strlen);
@@ -321,7 +320,7 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
         }
 
         for (i=0; i<nhosts; i++) {
-                fprintf(stderr, "Addr %d is %s\n", i, inet_ntoa(((struct sockaddr_in *)hostaddrs[i].ai_addr)->sin_addr));
+                fprintf(stderr, "Addr %d is %s\n", i, inet_ntoa(((struct sockaddr_in *)&hostaddrs[i])->sin_addr));
         } exit(0);
 
         free(line);
