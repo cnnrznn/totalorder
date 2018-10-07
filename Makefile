@@ -5,15 +5,16 @@ INCS= channel.h messages.h
 all: prj1
 
 prj1: main.c $(OBJS) $(INCS)
-	gcc main.c \
+	gcc -pg -g \
+		main.c \
 		$(OBJS) \
 		-o prj1
 
 channel.o: channel.c $(INCS)
-	gcc -c channel.c
+	gcc -c -g -pg channel.c
 
 queue.o: queue.c $(INCS)
-	gcc -c queue.c
+	gcc -c -g -pg queue.c
 
 clean:
 	rm -f $(BIN) $(OBJS)

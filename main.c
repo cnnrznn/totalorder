@@ -1,4 +1,5 @@
 #include <getopt.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -8,6 +9,12 @@
 
 void print_usage(void);
 void print_delivery(SeqMessage *);
+
+void
+handle_sigint(int sig)
+{
+	exit(0);
+}
 
 int main(int argc, char **argv)
 {
@@ -22,6 +29,8 @@ int main(int argc, char **argv)
         char options[] = { "c:h:p:i:t:x:" };
 
         int data;
+
+	signal(SIGINT, handle_sigint);
 
         while ((opt = getopt(argc, argv,  options)) != -1) {
                 switch (opt) {
