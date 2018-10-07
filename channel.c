@@ -26,6 +26,7 @@ static int id = -1;
 static size_t timeout;
 static uint32_t msg_curr = 0;
 static uint32_t seq_curr = 0;
+static uint32_t ckpt_curr = 0;
 
 static queue* sendq = NULL;
 static queue* recvq = NULL;
@@ -34,6 +35,8 @@ static queue* holdq = NULL;
 typedef struct {
         DataMessage dm;
         SeqMessage sm;
+        CkptMessage cm;
+        char is_ckpt;
         char *acks, *facks;
         size_t nacks, nfacks;
         size_t *timers;
@@ -47,6 +50,8 @@ typedef struct {
         AckMessage *am;
         SeqMessage *sm;
         FinMessage *fm;
+        CkptMessage *cm;
+        CkptAck *ca;
 } recvq_elem;
 
 typedef struct {
@@ -118,6 +123,12 @@ deliver(int *res)
 }
 
 static void
+do_ckpt(CkptMessage cm)
+{
+        fprintf(stdout, "Checkpoint %u from initiator %u\n", cm.initiator, cm.ckpt_id);
+}
+
+static void
 process_sendq()
 {
         //fprintf(stderr, "Entering process_sendq\n");
@@ -135,8 +146,14 @@ again:
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->acks[i]) {
                                 if (se->timeouts[i] < se->timers[i]) {
-                                        sendto(sk, &se->dm, sizeof(DataMessage), 0,
-                                                        &hostaddrs[i], hostaddrslen[i]);
+                                        if (se->is_ckpt) {
+                                                sendto(sk, &se->cm, sizeof(CkptMessage), 0,
+                                                                &hostaddrs[i], hostaddrslen[i]);
+                                        }
+                                        else {
+                                                sendto(sk, &se->dm, sizeof(DataMessage), 0,
+                                                                &hostaddrs[i], hostaddrslen[i]);
+                                        }
                                         se->timers[i] = 0;
                                 } else {
                                         se->timers[i]++;
@@ -272,6 +289,37 @@ process_recvq()
                         se->facks[re->fm->proposer] = 1;
                 }
                 break;
+        case 5:
+                fprintf(stderr, "Received CkptMessage (%u:%u)\n", re->cm->initiator, re->cm->ckpt_id);
+
+                // dump ckpt
+                do_ckpt(*re->cm);
+
+                // ack checkpoint
+                CkptAck ca;
+                ca.type = 6;
+                ca.initiator = re->cm->initiator;
+                ca.ckpt_id = re->cm->ckpt_id;
+                ca.recipient = id;
+
+                sendto(sk, &ca, sizeof(CkptAck), 0,
+                                &hostaddrs[re->cm->initiator],
+                                hostaddrslen[re->cm->initiator]);
+                break;
+        case 6:
+                fprintf(stderr, "Received CkptAck (%u:%u)\n", re->ca->initiator, re->ca->ckpt_id);
+
+                if (!(se = q_peek(sendq)))
+                        break; // no messages in sendq
+                if (se->cm.initiator != re->ca->initiator ||
+                                se->cm.ckpt_id != re->ca->ckpt_id)
+                        break; // already pop'd the pertaining ckpt marker
+
+                if (0 == se->acks[re->ca->recipient]) {
+                        se->nacks++;
+                        se->acks[re->ca->recipient] = 1;
+                }
+                break;
         default:
                 fprintf(stderr, "Received unexpected message type\n");
                 break;
@@ -364,10 +412,39 @@ ch_fini(void)
 }
 
 int
+ch_ckpt(void)
+{
+        int i;
+        sendq_elem *se = malloc(sizeof(sendq_elem));
+
+        se->is_ckpt = 1;
+
+        se->cm.type = 5;
+        se->cm.initiator = id;
+        se->cm.ckpt_id = ckpt_curr++;
+
+        se->acks = calloc(nhosts, sizeof(char));
+        se->nacks = 0;
+        se->facks = calloc(nhosts, sizeof(char));
+        se->nfacks = nhosts;
+
+        se->timers = malloc(nhosts * sizeof(size_t));
+        se->timeouts = malloc(nhosts * sizeof(size_t));
+        for (i=0; i<nhosts; i++) {
+                se->timers[i] = 0;
+                se->timeouts[i] = timeout;
+        }
+
+        q_push(sendq, se);
+}
+
+int
 ch_send(int data)
 {
         int i;
         sendq_elem *se = malloc(sizeof(sendq_elem));
+
+        se->is_ckpt = 0;
 
         se->dm.type = 1;
         se->dm.sender = id;
@@ -423,6 +500,8 @@ ch_recv(int *res)
                 re->am = (2 == type) ? (AckMessage*)re->msg : NULL;
                 re->sm = (3 == type) ? (SeqMessage*)re->msg : NULL;
                 re->fm = (4 == type) ? (FinMessage*)re->msg : NULL;
+                re->cm = (5 == type) ? (CkptMessage*)re->msg : NULL;
+                re->ca = (6 == type) ? (CkptAck*)re->msg : NULL;
 
                 //fprintf(stderr, "Pushing to recvq\n");
                 q_push(recvq, re);

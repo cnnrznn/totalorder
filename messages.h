@@ -33,4 +33,17 @@ typedef struct {
         uint32_t proposer;
 } FinMessage;
 
+typedef struct {
+        uint32_t type;                          // 5
+        uint32_t initiator;
+        uint32_t ckpt_id;
+} CkptMessage;
+
+typedef struct {
+        uint32_t type;                          // 6
+        uint32_t initiator;
+        uint32_t ckpt_id;
+        uint32_t recipient;
+} CkptAck;
+
 #endif /* _MSG_H */

@@ -16,9 +16,10 @@ int main(int argc, char **argv)
         char *port = NULL;
         char *hostfile = NULL;
         int id = -1;
+        int ckpt_time = 0;
         size_t timeout = 0;
         int opt;
-        char options[] = { "c:h:p:i:t:" };
+        char options[] = { "c:h:p:i:t:x:" };
 
         int data;
 
@@ -45,6 +46,10 @@ int main(int argc, char **argv)
                                 timeout = atol(optarg);
                                 fprintf(stderr, "timeout is %lu\n", timeout);
                                 break;
+                        case 'x':
+                                ckpt_time = atoi(optarg);
+                                fprintf(stderr, "ckpt at time %d\n", ckpt_time);
+                                break;
                         default:
                                 fprintf(stderr, "Unknown option, committing sepuku...\n");
                                 goto err;
@@ -63,10 +68,13 @@ int main(int argc, char **argv)
         srand(time(NULL));
 
         while (1) {
-                if (n_sent < count) {
-                        ch_send(rand() % 1000);
-                        n_sent++;
+                if (n_sent == ckpt_time) {
+                        ch_ckpt();
                 }
+                else if (n_sent < count) {
+                        ch_send(rand() % 1000);
+                }
+                n_sent++;
                 if (ch_recv(&data)) {
                         // handle error, ignore
                 }

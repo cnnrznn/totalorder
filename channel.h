@@ -10,4 +10,6 @@ int ch_fini(void);
 int ch_send(int);
 int ch_recv(int*);
 
+int ch_ckpt(void);
+
 #endif /* _CHANNEL_H */
