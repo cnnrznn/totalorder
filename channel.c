@@ -27,6 +27,7 @@ static size_t timeout;
 static uint32_t msg_curr = 0;
 static uint32_t seq_curr = 0;
 static uint32_t ckpt_curr = 0;
+static size_t *ckpt_vec;
 
 static queue* sendq = NULL;
 static queue* recvq = NULL;
@@ -125,7 +126,12 @@ deliver(int *res)
 static void
 do_ckpt(CkptMessage cm)
 {
-        fprintf(stdout, "Checkpoint %u from initiator %u\n", cm.initiator, cm.ckpt_id);
+        if (ckpt_vec[cm.initiator] >= cm.ckpt_id)
+                return; // already have processed this checkpoint
+
+        ckpt_vec[cm.initiator] = cm.ckpt_id;
+
+        fprintf(stdout, "Checkpoint %u from initiator %u\n", cm.ckpt_id, cm.initiator);
 }
 
 static void
@@ -394,6 +400,8 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
         recvq = q_alloc(QSIZE);
         holdq = q_alloc(QSIZE);
 
+        ckpt_vec = calloc(nhosts, sizeof(size_t));
+
         //fprintf(stderr, "ch_init: success\n");
         return 0;
 err_addr:
@@ -421,7 +429,7 @@ ch_ckpt(void)
 
         se->cm.type = 5;
         se->cm.initiator = id;
-        se->cm.ckpt_id = ckpt_curr++;
+        se->cm.ckpt_id = ++ckpt_curr;
 
         se->acks = calloc(nhosts, sizeof(char));
         se->nacks = 0;
