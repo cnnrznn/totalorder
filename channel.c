@@ -14,8 +14,8 @@
 #define HOSTS_MAX 1024
 #define QSIZE 1024
 #define GARBAGE 1337
-#define TIMEOUT_LIMIT 1000
-#define TIMEOUT_FACTOR 1.1
+#define TIMEOUT_LIMIT 10000
+#define TIMEOUT_FACTOR 1.5
 
 static int sk = -1;
 static struct addrinfo hints, *skaddr;
@@ -104,7 +104,7 @@ comp_holdq_elem_msg(void *a, void *b)
 }
 
 void
-deliver(int *res)
+ch_deliver(int *res)
 {
         holdq_elem *he;
 
@@ -242,6 +242,7 @@ process_recvq()
                         he->final_seq = 0;
 
                         q_push(holdq, he);
+                        q_sort(holdq, comp_holdq_elem_msg);
 
                         msg_vc[re->dm->sender] = re->dm->msg_id;
 
@@ -546,7 +547,6 @@ ch_recv(int *res)
         // process the asynchronous queues
         process_sendq();
         process_recvq();
-        deliver(res);
 
         return 0;
 }

@@ -10,10 +10,12 @@
 void print_usage(void);
 void print_delivery(SeqMessage *);
 
+char cont = 1;
+
 void
 handle_sigint(int sig)
 {
-	exit(0);
+        cont = 0;
 }
 
 int main(int argc, char **argv)
@@ -76,7 +78,7 @@ int main(int argc, char **argv)
 
         srand(time(NULL));
 
-        while (1) {
+        while (cont) {
                 if (n_sent == ckpt_time) {
                         ch_ckpt();
                 }
@@ -90,6 +92,9 @@ int main(int argc, char **argv)
                 sleep(0.00001);
                 fflush(stdout);
         }
+
+        ch_deliver(&data);
+        fflush(stdout);
 
         return 0;
 err:
