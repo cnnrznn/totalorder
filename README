@@ -14,3 +14,11 @@ ARCHITECTURE
         * ch_recv(int*) - attempt to receive(deliver) a message from the channel
 
         `queue.*` is a generic queue implementation with sorting and searching
+
+DEBUGGING
+	When moving to four nodes, I noticed that initially the messages were sent quickly, but would slow over time.
+	Initially I thought this was a symptom of the back-off congestion control.
+	After reducing the back-off rate to 1.1, the problem persisted.
+	I employed gprof.
+	My guess was that frequent invocations of a quicksort function that didn't check for the sorted property were to blame.
+	I was correct, and the gprof file can be found in `debugging/sorting.gprof`.

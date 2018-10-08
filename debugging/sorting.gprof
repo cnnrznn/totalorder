@@ -1,0 +1,272 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  us/call  us/call  name    
+ 37.44    364.30   364.30 1109894699     0.33     0.33  swap
+ 36.39    718.42   354.13 484664776     0.73     0.73  comp_holdq_elem
+ 22.36    935.97   217.55 632717540     0.34     1.48  partition
+  2.32    958.55    22.58 11966887     1.89    80.61  ch_recv
+  0.95    967.81     9.26                             print_usage
+  0.57    973.35     5.54 11968679     0.46    78.67  quicksort
+  0.02    973.53     0.18 11966887     0.02     0.02  process_sendq
+  0.01    973.64     0.11 11966887     0.01    78.68  deliver
+  0.01    973.73     0.09 23935794     0.00     0.00  q_peek
+  0.01    973.79     0.07 11968679     0.01    78.67  q_sort
+  0.01    973.85     0.06                             main
+  0.01    973.90     0.05 11967600     0.00     0.00  q_pop
+  0.00    973.94     0.04 11966887     0.00     0.02  process_recvq
+  0.00    973.96     0.02  3225908     0.01     0.01  comp_holdq_elem_msg
+  0.00    973.97     0.01     1792     2.79     2.83  q_search
+  0.00    973.97     0.00     4889     0.00     0.00  q_push
+  0.00    973.97     0.00     1792     0.00     0.03  binsearch
+  0.00    973.97     0.00      399     0.00     0.00  ch_send
+  0.00    973.97     0.00        4     0.00     0.00  do_ckpt
+  0.00    973.97     0.00        3     0.00     0.00  q_alloc
+  0.00    973.97     0.00        1     0.00     0.00  ch_ckpt
+  0.00    973.97     0.00        1     0.00     0.00  ch_init
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+ 
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this 
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2014 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 0.00% of 973.97 seconds
+
+index % time    self  children    called     name
+                                                 <spontaneous>
+[1]     99.0    0.06  964.65                 main [1]
+               22.58  942.07 11966887/11966887     ch_recv [2]
+                0.00    0.00     399/399         ch_send [18]
+                0.00    0.00       1/1           ch_init [22]
+                0.00    0.00       1/1           ch_ckpt [21]
+-----------------------------------------------
+               22.58  942.07 11966887/11966887     main [1]
+[2]     99.0   22.58  942.07 11966887         ch_recv [2]
+                0.11  941.49 11966887/11966887     deliver [3]
+                0.04    0.20 11966887/11966887     process_recvq [10]
+                0.18    0.05 11966887/11966887     process_sendq [11]
+                0.00    0.00    3592/4889        q_push [17]
+-----------------------------------------------
+                0.11  941.49 11966887/11966887     ch_recv [2]
+[3]     96.7    0.11  941.49 11966887         deliver [3]
+                0.07  941.38 11966887/11968679     q_sort [4]
+                0.05    0.00 11966886/23935794     q_peek [12]
+                0.00    0.00     488/11967600     q_pop [13]
+-----------------------------------------------
+                0.00    0.14    1792/11968679     process_recvq [10]
+                0.07  941.38 11966887/11968679     deliver [3]
+[4]     96.7    0.07  941.52 11968679         q_sort [4]
+                5.54  935.99 11968679/11968679     quicksort [5]
+-----------------------------------------------
+                             1265434946             quicksort [5]
+                5.54  935.99 11968679/11968679     q_sort [4]
+[5]     96.7    5.54  935.99 11968679+1265434946 quicksort [5]
+              217.55  718.44 632717540/632717540     partition [6]
+                             1265434946             quicksort [5]
+-----------------------------------------------
+              217.55  718.44 632717540/632717540     quicksort [5]
+[6]     96.1  217.55  718.44 632717540         partition [6]
+              364.30    0.00 1109894699/1109894699     swap [7]
+              354.13    0.00 484664776/484664776     comp_holdq_elem [8]
+                0.02    0.00 3216343/3225908     comp_holdq_elem_msg [14]
+-----------------------------------------------
+              364.30    0.00 1109894699/1109894699     partition [6]
+[7]     37.4  364.30    0.00 1109894699         swap [7]
+-----------------------------------------------
+              354.13    0.00 484664776/484664776     partition [6]
+[8]     36.4  354.13    0.00 484664776         comp_holdq_elem [8]
+-----------------------------------------------
+                                                 <spontaneous>
+[9]      1.0    9.26    0.00                 print_usage [9]
+-----------------------------------------------
+                0.04    0.20 11966887/11966887     ch_recv [2]
+[10]     0.0    0.04    0.20 11966887         process_recvq [10]
+                0.00    0.14    1792/11968679     q_sort [4]
+                0.05    0.00 11966887/11967600     q_pop [13]
+                0.01    0.00    1792/1792        q_search [15]
+                0.00    0.00    1796/23935794     q_peek [12]
+                0.00    0.00     897/4889        q_push [17]
+                0.00    0.00       4/4           do_ckpt [19]
+-----------------------------------------------
+                0.18    0.05 11966887/11966887     ch_recv [2]
+[11]     0.0    0.18    0.05 11966887         process_sendq [11]
+                0.05    0.00 11967112/23935794     q_peek [12]
+                0.00    0.00     225/11967600     q_pop [13]
+-----------------------------------------------
+                0.00    0.00    1796/23935794     process_recvq [10]
+                0.05    0.00 11966886/23935794     deliver [3]
+                0.05    0.00 11967112/23935794     process_sendq [11]
+[12]     0.0    0.09    0.00 23935794         q_peek [12]
+-----------------------------------------------
+                0.00    0.00     225/11967600     process_sendq [11]
+                0.00    0.00     488/11967600     deliver [3]
+                0.05    0.00 11966887/11967600     process_recvq [10]
+[13]     0.0    0.05    0.00 11967600         q_pop [13]
+-----------------------------------------------
+                0.00    0.00    9565/3225908     binsearch [16]
+                0.02    0.00 3216343/3225908     partition [6]
+[14]     0.0    0.02    0.00 3225908         comp_holdq_elem_msg [14]
+-----------------------------------------------
+                0.01    0.00    1792/1792        process_recvq [10]
+[15]     0.0    0.01    0.00    1792         q_search [15]
+                0.00    0.00    1792/1792        binsearch [16]
+-----------------------------------------------
+                0.00    0.00    1792/1792        q_search [15]
+[16]     0.0    0.00    0.00    1792         binsearch [16]
+                0.00    0.00    9565/3225908     comp_holdq_elem_msg [14]
+-----------------------------------------------
+                0.00    0.00       1/4889        ch_ckpt [21]
+                0.00    0.00     399/4889        ch_send [18]
+                0.00    0.00     897/4889        process_recvq [10]
+                0.00    0.00    3592/4889        ch_recv [2]
+[17]     0.0    0.00    0.00    4889         q_push [17]
+-----------------------------------------------
+                0.00    0.00     399/399         main [1]
+[18]     0.0    0.00    0.00     399         ch_send [18]
+                0.00    0.00     399/4889        q_push [17]
+-----------------------------------------------
+                0.00    0.00       4/4           process_recvq [10]
+[19]     0.0    0.00    0.00       4         do_ckpt [19]
+-----------------------------------------------
+                0.00    0.00       3/3           ch_init [22]
+[20]     0.0    0.00    0.00       3         q_alloc [20]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[21]     0.0    0.00    0.00       1         ch_ckpt [21]
+                0.00    0.00       1/4889        q_push [17]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[22]     0.0    0.00    0.00       1         ch_init [22]
+                0.00    0.00       3/3           q_alloc [20]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2014 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [16] binsearch (queue.c)    [19] do_ckpt (channel.c)    [13] q_pop
+  [21] ch_ckpt                 [1] main                   [17] q_push
+  [22] ch_init                 [6] partition (queue.c)    [15] q_search
+   [2] ch_recv                 [9] print_usage             [4] q_sort
+  [18] ch_send                [10] process_recvq (channel.c) [5] quicksort (queue.c)
+   [8] comp_holdq_elem (channel.c) [11] process_sendq (channel.c) [7] swap (queue.c)
+  [14] comp_holdq_elem_msg (channel.c) [20] q_alloc
+   [3] deliver (channel.c)    [12] q_peek
