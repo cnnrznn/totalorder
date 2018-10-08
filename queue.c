@@ -71,8 +71,8 @@ int
 q_push(queue* q, void* e)
 {
         if (q->size == q->n + 1) {
-                abort(); // play it safe
-                // TODO realloc()
+                q->size *= 2;
+                q->arr = realloc(q->arr, q->size);
         }
 
         q->arr[q->n++] = e;
