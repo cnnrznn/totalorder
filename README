@@ -1,0 +1,16 @@
+Assignment:     Project 1
+Student:        Connor Zanin
+
+Notes:
+
+ARCHITECTURE
+        `main.c` is meant to act as a client to the multicast service.
+        The main body of the service is implemented in `channel.c`.
+
+        The channel has four main interface functions:
+        * ch_init() - initialize socket, datastructures
+        * ch_fini() - cleanup
+        * ch_send(int) - multicast an int
+        * ch_recv(int*) - attempt to receive(deliver) a message from the channel
+
+        `queue.*` is a generic queue implementation with sorting and searching
