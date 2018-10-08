@@ -26,3 +26,14 @@ DEBUGGING
         The problem comes because I need to sort the queue by two comparator functions.
         I could remedy this problem by maintaining two separate queues.
         Delivering multiple messages at once also seems to rememdy the problem as the hold-back queue is drained faster which reduces the number of calls to `q_sort` as well as the size of the queue.
+
+CHECKPOINTING
+        Checkpointing in my system is handled by the same system that sends data messages.
+        First, the markers are sent out.
+        The initiator waits for all acks, and does retransmissions according to timeouts.
+        A recipient of a marker only takes one checkpoint per intitiator and checkpoint id.
+        A vector clock is maintained by each recipient that keeps track of the latest checkpoint request from each initiator.
+
+        A checkpoint is not guaranteed to be consistent.
+        However, my system is resilient to packet loss, duplication, and reodering.
+        If a node receives a data message with a lower msg_id than what it has seen for a particular sender, the message is discarded.

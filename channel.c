@@ -30,6 +30,7 @@ static uint32_t msg_curr = 0;
 static uint32_t seq_curr = 0;
 static uint32_t ckpt_curr = 0;
 static size_t *ckpt_vec;
+static size_t *msg_vc;
 
 static queue* sendq = NULL;
 static queue* recvq = NULL;
@@ -224,8 +225,7 @@ process_recvq()
                 other.dm.sender = re->dm->sender;
                 other.dm.msg_id = re->dm->msg_id;
 
-                q_sort(holdq, comp_holdq_elem_msg);
-                if (!(he = q_search(holdq, &other, comp_holdq_elem_msg))) {
+                if (msg_vc[re->dm->sender] < re->dm->msg_id) {
                         // if not in holdq, put there
                         he = malloc(sizeof(holdq_elem));
                         he->dm = *(re->dm);
@@ -243,11 +243,20 @@ process_recvq()
 
                         q_push(holdq, he);
 
+                        msg_vc[re->dm->sender] = re->dm->msg_id;
+
                         //fprintf(stdout, "Assigning sequence number %u\n", he->am.proposed_seq);
                 }
 
                 // ack the DataMessage
-                sendto(sk, &he->am, sizeof(AckMessage), 0,
+                AckMessage am;
+                am.type = 2;
+                am.sender = re->dm->sender;
+                am.msg_id = re->dm->msg_id;
+                am.proposed_seq = ++seq_curr;
+                am.proposer = id;
+
+                sendto(sk, &am, sizeof(AckMessage), 0,
                                 &hostaddrs[he->am.sender], hostaddrslen[he->am.sender]);
                 break;
         case 3:                 // SeqMessage
@@ -419,6 +428,7 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
         holdq = q_alloc(QSIZE);
 
         ckpt_vec = calloc(nhosts, sizeof(size_t));
+        msg_vc = calloc(nhosts, sizeof(size_t));
 
         //fprintf(stderr, "ch_init: success\n");
         return 0;
