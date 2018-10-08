@@ -291,15 +291,15 @@ process_recvq()
                         se->nacks++;
                         se->acks[re->am->proposer] = 1;
 
+                        if (se->sm.final_seq < re->am->proposed_seq) {
+                                se->sm.final_seq = re->am->proposed_seq;
+                                se->sm.final_seq_proposer = re->am->proposer;
+                        }
+
 			if (se->nacks == nhosts) {
 				for (i=0; i<nhosts; i++)
 					se->timeouts[i] = timeout;
 			}
-                }
-
-                if (se->sm.final_seq < re->am->proposed_seq) {
-                        se->sm.final_seq = re->am->proposed_seq;
-                        se->sm.final_seq_proposer = re->am->proposer;
                 }
                 break;
         case 4:                 // FinMessage
