@@ -14,6 +14,8 @@
 #define HOSTS_MAX 1024
 #define QSIZE 1024
 #define GARBAGE 1337
+#define TIMEOUT_LIMIT 1000
+#define TIMEOUT_FACTOR 1.1
 
 static int sk = -1;
 static struct addrinfo hints, *skaddr;
@@ -161,6 +163,8 @@ again:
                                                                 &hostaddrs[i], hostaddrslen[i]);
                                         }
                                         se->timers[i] = 0;
+					if (se->timeouts[i] < TIMEOUT_LIMIT)
+						se->timeouts[i] *= TIMEOUT_FACTOR;
                                 } else {
                                         se->timers[i]++;
                                 }
@@ -175,6 +179,8 @@ again:
                                         sendto(sk, &se->sm, sizeof(SeqMessage), 0,
                                                         &hostaddrs[i], hostaddrslen[i]);
                                         se->timers[i] = 0;
+					if (se->timeouts[i] < TIMEOUT_LIMIT)
+						se->timeouts[i] *= TIMEOUT_FACTOR;
                                 } else {
                                         se->timers[i]++;
                                 }
@@ -199,6 +205,8 @@ static void
 process_recvq()
 {
         //fprintf(stderr, "Entering process_recvq\n");
+
+	int i;
 
         recvq_elem *re = NULL;
         holdq_elem *he = NULL, other;
@@ -274,6 +282,11 @@ process_recvq()
                 if (0 == se->acks[re->am->proposer]) {
                         se->nacks++;
                         se->acks[re->am->proposer] = 1;
+
+			if (se->nacks == nhosts) {
+				for (i=0; i<nhosts; i++)
+					se->timeouts[i] = timeout;
+			}
                 }
 
                 if (se->sm.final_seq < re->am->proposed_seq) {
@@ -324,6 +337,12 @@ process_recvq()
                 if (0 == se->acks[re->ca->recipient]) {
                         se->nacks++;
                         se->acks[re->ca->recipient] = 1;
+
+			if (se->nacks == nhosts) {
+				for (i=0; i<nhosts; i++)
+					se->timeouts[i] = timeout;
+			}
+
                 }
                 break;
         default:
