@@ -257,7 +257,7 @@ process_recvq()
                 am.proposer = id;
 
                 sendto(sk, &am, sizeof(AckMessage), 0,
-                                &hostaddrs[he->am.sender], hostaddrslen[he->am.sender]);
+                                &hostaddrs[am.sender], hostaddrslen[am.sender]);
                 break;
         case 3:                 // SeqMessage
         	fprintf(stderr, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
@@ -480,6 +480,8 @@ ch_send(int data)
         int i;
         sendq_elem *se = malloc(sizeof(sendq_elem));
 
+        msg_curr++;
+
         se->is_ckpt = 0;
 
         se->dm.type = 1;
@@ -507,8 +509,6 @@ ch_send(int data)
 
         fprintf(stderr, "Multicasting %d\n", data);
         q_push(sendq, se);
-
-        msg_curr++;
 
         return 0;
 }
