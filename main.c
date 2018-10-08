@@ -23,7 +23,7 @@ int main(int argc, char **argv)
         char *port = NULL;
         char *hostfile = NULL;
         int id = -1;
-        int ckpt_time = 0;
+        int ckpt_time = -1;
         size_t timeout = 0;
         int opt;
         char options[] = { "c:h:p:i:t:x:" };

@@ -102,15 +102,16 @@ comp_holdq_elem_msg(void *a, void *b)
                 return 0;
 }
 
-static int
+void
 deliver(int *res)
 {
         holdq_elem *he;
 
         q_sort(holdq, comp_holdq_elem);
 
+again:
         if (NULL == (he = q_peek(holdq)))
-                return -1;
+                return;
 
         if (he->deliverable) {
                 *res = he->dm.data;
@@ -119,10 +120,8 @@ deliver(int *res)
                                 he->final_seq_proposer);
                 q_pop(holdq);
                 free(he);
-                return 0;
+                goto again;
         }
-
-        return -1;
 }
 
 static void
@@ -537,6 +536,7 @@ ch_recv(int *res)
         // process the asynchronous queues
         process_sendq();
         process_recvq();
+        deliver(res);
 
-        return deliver(res);
+        return 0;
 }

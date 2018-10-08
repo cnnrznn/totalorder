@@ -72,7 +72,7 @@ q_push(queue* q, void* e)
 {
         if (q->size == q->n + 1) {
                 q->size *= 2;
-                q->arr = realloc(q->arr, q->size);
+                q->arr = realloc(q->arr, q->size*sizeof(void*));
         }
 
         q->arr[q->n++] = e;

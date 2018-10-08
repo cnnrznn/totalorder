@@ -22,3 +22,7 @@ DEBUGGING
 	I employed gprof.
 	My guess was that frequent invocations of a quicksort function that didn't check for the sorted property were to blame.
 	I was correct, and the gprof file can be found in `debugging/sorting.gprof`.
+
+        The problem comes because I need to sort the queue by two comparator functions.
+        I could remedy this problem by maintaining two separate queues.
+        Delivering multiple messages at once also seems to rememdy the problem as the hold-back queue is drained faster which reduces the number of calls to `q_sort` as well as the size of the queue.
