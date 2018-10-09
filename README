@@ -3,6 +3,19 @@ Student:        Connor Zanin
 
 Notes:
 
+HOW TO RUN:
+        make clean && make
+
+        ./prj1 -h <hostfile> -p <port> -c <count> -s <snapshot time>
+
+        The program has two optional parameters, '-s' to snapshot and '-t' to indicate initial timeout value.
+        -s is -1 by default (don't snapshot).
+        -t is 10,000 by default.
+        Experiments (results in results-timeouts.csv) show this to be near-optimal.
+
+        When the program is done, 'kill -2 <pid>' to print the hold-back buffer to stdout.
+        Snapshots are written to 'snap.$i' in the current working directory.
+
 ARCHITECTURE
         `main.c` is meant to act as a client to the multicast service.
         The main body of the service is implemented in `channel.c`.
@@ -12,6 +25,7 @@ ARCHITECTURE
         * ch_fini() - cleanup
         * ch_send(int) - multicast an int
         * ch_recv(int*) - attempt to receive(deliver) a message from the channel
+        * ch_ckpt() - snapshot the system
 
         `queue.*` is a generic queue implementation with sorting and searching
 
@@ -39,3 +53,10 @@ CHECKPOINTING
         However, my system is resilient to packet loss, duplication, and reodering.
         If a node receives a data message with a lower msg_id than what it has seen for a particular sender, the message is discarded.
         If a node receives a SeqMessage for a message not in its holdback queue, it is also discarded.
+
+EXPERIMENTS
+        I did some testing of various settings related to timeouts and retransmissions.
+        The results can be found in results-timeouts.csv.
+
+        Experiments were run on a 4 process cluster where each process sends 500 messages.
+        Results of 'number of messages sent' are given for a single node (NOT the sum across all processes).
