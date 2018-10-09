@@ -31,6 +31,7 @@ static uint32_t seq_curr = 0;
 static uint32_t ckpt_curr = 0;
 static size_t *ckpt_vc;
 static size_t *msg_vc;
+static size_t *seq_vc;
 
 size_t stat_nsent = 0;
 
@@ -109,6 +110,7 @@ comp_holdq_elem_msg(void *a, void *b)
 void
 ch_deliver(int *res)
 {
+        int i;
         holdq_elem *he;
 
         q_sort(holdq, comp_holdq_elem);
@@ -116,6 +118,11 @@ ch_deliver(int *res)
 again:
         if (NULL == (he = q_peek(holdq)))
                 return;
+
+        /*for (i=0; i<nhosts; i++) {
+                if (seq_vc[i] < he->final_seq)
+                        return;
+        }*/
 
         if (he->deliverable) {
                 *res = he->dm.data;
@@ -209,7 +216,6 @@ again:
                                                                 &hostaddrs[i], hostaddrslen[i]);
                                         }
                                         stat_nsent++;
-                                        seq_curr++;
                                         se->timers[i] = 0;
 					if (se->timeouts[i] < TIMEOUT_LIMIT)
 						se->timeouts[i] *= TIMEOUT_FACTOR;
@@ -228,7 +234,6 @@ again:
                                         sendto(sk, &se->sm, sizeof(SeqMessage), 0,
                                                         &hostaddrs[i], hostaddrslen[i]);
                                         stat_nsent++;
-                                        seq_curr++;
                                         se->timers[i] = 0;
 					if (se->timeouts[i] < TIMEOUT_LIMIT)
 						se->timeouts[i] *= TIMEOUT_FACTOR;
@@ -268,8 +273,6 @@ process_recvq()
                 return;
         }
 
-        seq_curr++;
-
         switch (re->type) {
         case 1:                 // DataMessage
                 fprintf(stderr, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
@@ -278,14 +281,15 @@ process_recvq()
                 other.dm.sender = re->dm->sender;
                 other.dm.msg_id = re->dm->msg_id;
 
-                if (msg_vc[re->dm->sender] < re->dm->msg_id) {
+                if (!(he = q_search(holdq, &other, comp_holdq_elem_msg)) &&
+                                msg_vc[re->dm->sender] < re->dm->msg_id) {
                         // if not in holdq, put there
                         he = malloc(sizeof(holdq_elem));
                         he->dm = *(re->dm);
                         he->am.type = 2;
                         he->am.sender = he->dm.sender;
                         he->am.msg_id = he->dm.msg_id;
-                        he->am.proposed_seq = seq_curr;
+                        he->am.proposed_seq = ++seq_curr;
                         he->am.proposer = id;
                         he->fm.type = 4;
                         he->fm.sender = he->dm.sender;
@@ -303,15 +307,8 @@ process_recvq()
                 }
 
                 // ack the DataMessage
-                AckMessage am;
-                am.type = 2;
-                am.sender = re->dm->sender;
-                am.msg_id = re->dm->msg_id;
-                am.proposed_seq = seq_curr;
-                am.proposer = id;
-
-                sendto(sk, &am, sizeof(AckMessage), 0,
-                                &hostaddrs[am.sender], hostaddrslen[am.sender]);
+                sendto(sk, &he->am, sizeof(AckMessage), 0,
+                                &hostaddrs[he->am.sender], hostaddrslen[he->am.sender]);
                 stat_nsent++;
                 break;
         case 3:                 // SeqMessage
@@ -483,6 +480,7 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
 
         ckpt_vc = calloc(nhosts, sizeof(size_t));
         msg_vc = calloc(nhosts, sizeof(size_t));
+        seq_vc = calloc(nhosts, sizeof(size_t));
 
         //fprintf(stderr, "ch_init: success\n");
         return 0;
