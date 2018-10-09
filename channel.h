@@ -14,4 +14,6 @@ void ch_deliver(int*);
 
 int ch_ckpt(void);
 
+extern size_t stat_nsent;
+
 #endif /* _CHANNEL_H */

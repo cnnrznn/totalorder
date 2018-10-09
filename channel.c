@@ -32,6 +32,8 @@ static uint32_t ckpt_curr = 0;
 static size_t *ckpt_vec;
 static size_t *msg_vc;
 
+size_t stat_nsent = 0;
+
 static queue* sendq = NULL;
 static queue* recvq = NULL;
 static queue* holdq = NULL;
@@ -45,6 +47,7 @@ typedef struct {
         size_t nacks, nfacks;
         size_t *timers;
         double *timeouts;
+        char imm;
 } sendq_elem;
 
 typedef struct {
@@ -153,7 +156,8 @@ again:
                 // unicast message to those who haven't ack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->acks[i]) {
-                                if (se->timeouts[i] < se->timers[i]) {
+                                if (se->timeouts[i] < se->timers[i] || se->imm) {
+                                        se->imm = 0;
                                         if (se->is_ckpt) {
                                                 sendto(sk, &se->cm, sizeof(CkptMessage), 0,
                                                                 &hostaddrs[i], hostaddrslen[i]);
@@ -162,6 +166,8 @@ again:
                                                 sendto(sk, &se->dm, sizeof(DataMessage), 0,
                                                                 &hostaddrs[i], hostaddrslen[i]);
                                         }
+                                        stat_nsent++;
+                                        seq_curr++;
                                         se->timers[i] = 0;
 					if (se->timeouts[i] < TIMEOUT_LIMIT)
 						se->timeouts[i] *= TIMEOUT_FACTOR;
@@ -175,9 +181,12 @@ again:
                 // unicast final_seq to those who haven't fack'd
                 for (i=0; i<nhosts; i++) {
                         if (0 == se->facks[i]) {
-                                if (se->timeouts[i] < se->timers[i]) {
+                                if (se->timeouts[i] < se->timers[i] || se->imm) {
+                                        se->imm = 0;
                                         sendto(sk, &se->sm, sizeof(SeqMessage), 0,
                                                         &hostaddrs[i], hostaddrslen[i]);
+                                        stat_nsent++;
+                                        seq_curr++;
                                         se->timers[i] = 0;
 					if (se->timeouts[i] < TIMEOUT_LIMIT)
 						se->timeouts[i] *= TIMEOUT_FACTOR;
@@ -217,6 +226,8 @@ process_recvq()
                 return;
         }
 
+        seq_curr++;
+
         switch (re->type) {
         case 1:                 // DataMessage
                 fprintf(stderr, "Received DataMessage (%d:%d)\n", re->dm->sender, re->dm->msg_id);
@@ -232,7 +243,7 @@ process_recvq()
                         he->am.type = 2;
                         he->am.sender = he->dm.sender;
                         he->am.msg_id = he->dm.msg_id;
-                        he->am.proposed_seq = ++seq_curr;
+                        he->am.proposed_seq = seq_curr;
                         he->am.proposer = id;
                         he->fm.type = 4;
                         he->fm.sender = he->dm.sender;
@@ -254,11 +265,12 @@ process_recvq()
                 am.type = 2;
                 am.sender = re->dm->sender;
                 am.msg_id = re->dm->msg_id;
-                am.proposed_seq = ++seq_curr;
+                am.proposed_seq = seq_curr;
                 am.proposer = id;
 
                 sendto(sk, &am, sizeof(AckMessage), 0,
                                 &hostaddrs[am.sender], hostaddrslen[am.sender]);
+                stat_nsent++;
                 break;
         case 3:                 // SeqMessage
         	fprintf(stderr, "Received SeqMessage (%d:%d)(%u)\n", re->sm->sender, re->sm->msg_id,
@@ -267,7 +279,10 @@ process_recvq()
                 other.dm.sender = re->sm->sender;
                 other.dm.msg_id = re->sm->msg_id;
 
-                q_sort(holdq, comp_holdq_elem_msg);
+                if (seq_curr < re->sm->final_seq)
+                        seq_curr = re->sm->final_seq;
+
+                //q_sort(holdq, comp_holdq_elem_msg);
                 if (!(he = q_search(holdq, &other, comp_holdq_elem_msg)))
                         break;
 
@@ -278,6 +293,7 @@ process_recvq()
                 // fin the SeqMessage
                 sendto(sk, &he->fm, sizeof(FinMessage), 0,
                                 &hostaddrs[he->fm.sender], hostaddrslen[he->fm.sender]);
+                stat_nsent++;
                 break;
         case 2:                 // AckMessage
                 fprintf(stderr, "Received AckMessage (%d:%d)\n", re->am->sender, re->am->msg_id);
@@ -333,6 +349,7 @@ process_recvq()
                 sendto(sk, &ca, sizeof(CkptAck), 0,
                                 &hostaddrs[re->cm->initiator],
                                 hostaddrslen[re->cm->initiator]);
+                stat_nsent++;
                 break;
         case 6:
                 fprintf(stderr, "Received CkptAck (%u:%u)\n", re->ca->initiator, re->ca->ckpt_id);
@@ -346,12 +363,6 @@ process_recvq()
                 if (0 == se->acks[re->ca->recipient]) {
                         se->nacks++;
                         se->acks[re->ca->recipient] = 1;
-
-			if (se->nacks == nhosts) {
-				for (i=0; i<nhosts; i++)
-					se->timeouts[i] = timeout;
-			}
-
                 }
                 break;
         default:
@@ -455,6 +466,7 @@ ch_ckpt(void)
         sendq_elem *se = malloc(sizeof(sendq_elem));
 
         se->is_ckpt = 1;
+        se->imm = 1;
 
         se->cm.type = 5;
         se->cm.initiator = id;
@@ -484,6 +496,7 @@ ch_send(int data)
         msg_curr++;
 
         se->is_ckpt = 0;
+        se->imm = 1;
 
         se->dm.type = 1;
         se->dm.sender = id;

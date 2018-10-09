@@ -10,7 +10,7 @@
 void print_usage(void);
 void print_delivery(SeqMessage *);
 
-char cont = 1;
+static char cont = 1;
 
 void
 handle_sigint(int sig)
@@ -28,11 +28,14 @@ int main(int argc, char **argv)
         int ckpt_time = -1;
         size_t timeout = 0;
         int opt;
-        char options[] = { "c:h:p:i:t:x:" };
+        char options[] = { "c:h:p:i:t:s:" };
 
         int data;
 
-	signal(SIGINT, handle_sigint);
+	if (SIG_ERR == signal(SIGINT, handle_sigint)) {
+                perror("Could not set signal handler");
+                goto err;
+        }
 
         while ((opt = getopt(argc, argv,  options)) != -1) {
                 switch (opt) {
@@ -57,7 +60,7 @@ int main(int argc, char **argv)
                                 timeout = atol(optarg);
                                 fprintf(stderr, "timeout is %lu\n", timeout);
                                 break;
-                        case 'x':
+                        case 's':
                                 ckpt_time = atoi(optarg);
                                 fprintf(stderr, "ckpt at time %d\n", ckpt_time);
                                 break;
@@ -93,7 +96,8 @@ int main(int argc, char **argv)
                 fflush(stdout);
         }
 
-        ch_deliver(&data);
+        //ch_deliver(&data);
+        fprintf(stdout, "nsent = %lu\n", stat_nsent);
         fflush(stdout);
 
         return 0;

@@ -3,3 +3,11 @@ EXTRAS:
                 - don't disturb application execution by blocking
         2. consider invasion
                 - ignore packets from outsiders
+
+EVALUATION:
+        Hyper-parameters:
+                * default timeout
+                * timeout factor
+                * timeout bound
+
+        For a closed, 4 node system, how do each of these parameters effect the total number of messages sent, including re-transmissions?
