@@ -29,7 +29,7 @@ static size_t timeout;
 static uint32_t msg_curr = 0;
 static uint32_t seq_curr = 0;
 static uint32_t ckpt_curr = 0;
-static size_t *ckpt_vec;
+static size_t *ckpt_vc;
 static size_t *msg_vc;
 
 size_t stat_nsent = 0;
@@ -137,10 +137,10 @@ do_ckpt(CkptMessage cm)
         sendq_elem **se_arr;
         holdq_elem **he_arr;
 
-        if (ckpt_vec[cm.initiator] >= cm.ckpt_id)
+        if (ckpt_vc[cm.initiator] >= cm.ckpt_id)
                 return; // already have processed this checkpoint
 
-        ckpt_vec[cm.initiator] = cm.ckpt_id;
+        ckpt_vc[cm.initiator] = cm.ckpt_id;
 
         sprintf(fn, "snap.%u", id);
 
@@ -481,7 +481,7 @@ ch_init(char *hostfile, char *port, int _id, size_t _timeout)
         recvq = q_alloc(QSIZE);
         holdq = q_alloc(QSIZE);
 
-        ckpt_vec = calloc(nhosts, sizeof(size_t));
+        ckpt_vc = calloc(nhosts, sizeof(size_t));
         msg_vc = calloc(nhosts, sizeof(size_t));
 
         //fprintf(stderr, "ch_init: success\n");

@@ -87,8 +87,8 @@ int main(int argc, char **argv)
                 }
                 else if (n_sent < count) {
                         ch_send(rand() % 1000);
+                        n_sent++;
                 }
-                n_sent++;
                 if (ch_recv(&data)) {
                         // handle error, ignore
                 }

@@ -37,10 +37,16 @@ DEBUGGING
 	My guess was that frequent invocations of a quicksort function that didn't check for the sorted property were to blame.
 	I was correct, and the gprof file can be found in `debugging/sorting.gprof`.
 
-        The problem comes because I need to sort the queue by two comparator functions.
+        The problem comes because I need to sort the queue by two comparator functions, one by final_seq for delivery and one by (sender, msg_id) for finding unique messages.
         I could remedy this problem by maintaining two separate queues.
         After all, the queue is nothing more than an array of void pointers, which means overhead is small.
         Delivering multiple messages at once also seems to rememdy the problem as the hold-back queue is drained faster which reduces the number of calls to `q_sort` as well as the size of the queue.
+
+        This problem reveals a more insidious one.
+        Even if the sorting function is conflict-free, there is still the possibility that one process will deliver messages in a different order than another.
+        This happens because of the way I detect ability to deliver; if there are no undeliverable items in the hold-back queue, then deliver all the others.
+        This fixes many cases of delivering older final_seq's before younger once, it does not eliminate all cases.
+        One possible solution is to only deliver a message 'm' with sequence number 's' if you have received a message from every other host with a sequence number greater than s.
 
 CHECKPOINTING
         Checkpointing in my system is handled by the same system that sends data messages.
