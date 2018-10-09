@@ -131,12 +131,54 @@ again:
 static void
 do_ckpt(CkptMessage cm)
 {
+        FILE *f;
+        char fn[128] = { 0 };
+        int i;
+        sendq_elem **se_arr;
+        holdq_elem **he_arr;
+
         if (ckpt_vec[cm.initiator] >= cm.ckpt_id)
                 return; // already have processed this checkpoint
 
         ckpt_vec[cm.initiator] = cm.ckpt_id;
 
-        fprintf(stdout, "Checkpoint %u from initiator %u\n", cm.ckpt_id, cm.initiator);
+        sprintf(fn, "snap.%u", id);
+
+        if (NULL == (f = fopen(fn, "w"))) {
+                perror("Couldn't open file for snapshot\n");
+                return;
+        }
+
+        se_arr = (sendq_elem **)sendq->arr;
+        he_arr = (holdq_elem **)holdq->arr;
+
+        fprintf(f, "Process %d sendq:\n", id);
+        for (i=0; i<sendq->n; i++) {
+                if (se_arr[i]->is_ckpt)
+                        continue;
+
+                fprintf(f, "msg_id: %u, val: %d\n", se_arr[i]->dm.msg_id, se_arr[i]->dm.data);
+        } fprintf(f, "\n\n");
+
+        q_sort(holdq, comp_holdq_elem);
+
+        fprintf(f, "Process %d undeliverable:\n", id);
+        for (i=0; i<holdq->n; i++) {
+                if (he_arr[i]->deliverable)
+                        break;
+
+                fprintf(f, "sender: %u, msg_id: %u\n", he_arr[i]->dm.sender, he_arr[i]->dm.msg_id);
+        } fprintf(f, "\n\n");
+
+        fprintf(f, "Process %d deliverable:\n", id);
+        for (; i<holdq->n; i++) {
+                fprintf(f, "final_seq: %u, sender: %u, msg_id: %u\n",
+                                he_arr[i]->final_seq, he_arr[i]->dm.sender, he_arr[i]->dm.msg_id);
+        }
+
+        fclose(f);
+
+        q_sort(holdq, comp_holdq_elem_msg);
 }
 
 static void
