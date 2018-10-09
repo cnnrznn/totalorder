@@ -14,7 +14,7 @@ HOW TO RUN:
         Experiments (results in results-timeouts.csv) show this to be near-optimal.
 
         When the program is done, 'kill -2 <pid>' to print the hold-back buffer to stdout.
-        Snapshots are written to 'snap.$i' in the current working directory.
+        Snapshots are written to 'snap.<pid>' in the current working directory (pid is for processes in the service, not the pid assigned by the operating system).
 
 ARCHITECTURE
         `main.c` is meant to act as a client to the multicast service.
