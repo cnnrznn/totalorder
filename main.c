@@ -26,7 +26,7 @@ int main(int argc, char **argv)
         char *hostfile = NULL;
         int id = -1;
         int ckpt_time = -1;
-        size_t timeout = 0;
+        size_t timeout = 1000;
         int opt;
         char options[] = { "c:h:p:i:t:s:" };
 

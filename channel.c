@@ -14,7 +14,7 @@
 #define HOSTS_MAX 1024
 #define QSIZE 1024
 #define GARBAGE 1337
-#define TIMEOUT_LIMIT 10000
+#define TIMEOUT_LIMIT 100000
 #define TIMEOUT_FACTOR 1.5
 
 static int sk = -1;
