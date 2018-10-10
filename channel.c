@@ -281,6 +281,7 @@ process_recvq()
                 other.dm.sender = re->dm->sender;
                 other.dm.msg_id = re->dm->msg_id;
 
+                q_sort(holdq, comp_holdq_elem_msg);
                 if (!(he = q_search(holdq, &other, comp_holdq_elem_msg)) &&
                                 msg_vc[re->dm->sender] < re->dm->msg_id) {
                         // if not in holdq, put there
@@ -299,7 +300,6 @@ process_recvq()
                         he->final_seq = 0;
 
                         q_push(holdq, he);
-                        q_sort(holdq, comp_holdq_elem_msg);
 
                         msg_vc[re->dm->sender] = re->dm->msg_id;
 
@@ -321,7 +321,7 @@ process_recvq()
                 if (seq_curr < re->sm->final_seq)
                         seq_curr = re->sm->final_seq;
 
-                //q_sort(holdq, comp_holdq_elem_msg);
+                q_sort(holdq, comp_holdq_elem_msg);
                 if (!(he = q_search(holdq, &other, comp_holdq_elem_msg)))
                         break;
 
@@ -600,6 +600,7 @@ ch_recv(int *res)
         // process the asynchronous queues
         process_sendq();
         process_recvq();
+        ch_deliver(res);
 
         return 0;
 }

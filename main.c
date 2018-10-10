@@ -96,7 +96,7 @@ int main(int argc, char **argv)
                 fflush(stdout);
         }
 
-        ch_deliver(&data);
+        //ch_deliver(&data);
         //fprintf(stdout, "nsent = %lu\n", stat_nsent);
         fflush(stdout);
 
