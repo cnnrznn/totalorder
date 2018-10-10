@@ -84,6 +84,7 @@ int main(int argc, char **argv)
         while (cont) {
                 if (n_sent == ckpt_time) {
                         ch_ckpt();
+                        n_sent++;
                 }
                 else if (n_sent < count) {
                         ch_send(rand() % 1000);

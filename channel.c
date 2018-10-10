@@ -149,7 +149,7 @@ do_ckpt(CkptMessage cm)
 
         ckpt_vc[cm.initiator] = cm.ckpt_id;
 
-        sprintf(fn, "snap.%u", id);
+        sprintf(fn, "snap.%u.%u.%u", cm.initiator, cm.ckpt_id, id);
 
         if (NULL == (f = fopen(fn, "w"))) {
                 perror("Couldn't open file for snapshot\n");
