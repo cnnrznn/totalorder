@@ -6,7 +6,7 @@ Notes:
 HOW TO RUN:
         make clean && make
 
-        ./prj1 -h <hostfile> -p <port> -c <count> -s <snapshot time>
+        ./prj1 -h <hostfile> -p <port> -c <count> -s <snapshot time> -i <pid>
 
         The program has two optional parameters, '-s' to snapshot and '-t' to indicate initial timeout value.
         -s is -1 by default (don't snapshot).
@@ -18,6 +18,9 @@ HOW TO RUN:
         Snapshots are written to 'snap.<initiator>.<ckpt_id>.<pid>' in the current working directory.
         'initiator' and 'pid' are the process id's within the system of the initiator of the checkpoint and the checkpointee.
         For example, process 0's 4th checkpoint images will be stored in snap.0.4.0...snap.0.4.N where N is the number of processes.
+
+        PID'S START AT 0!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        The '-i' parameter is necessary and pid's start at 0.
 
 ARCHITECTURE
         `main.c` is meant to act as a client to the multicast service.
