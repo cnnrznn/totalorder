@@ -17,4 +17,5 @@ queue.o: queue.c $(INCS)
 	gcc -c -g -pg queue.c
 
 clean:
-	rm -f $(BIN) $(OBJS)
+	rm -f $(BIN) $(OBJS) snap* \
+		gmon.out
