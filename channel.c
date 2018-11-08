@@ -580,7 +580,7 @@ ch_recv(int *res)
 
         // try to recv a message
         if ((ret = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) > 0) {
-                if (rand()%100 < 30)
+                if (rand()%100 < 10)
                         goto out;
 
                 addr = (struct sockaddr_in *)&from;
