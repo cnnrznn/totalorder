@@ -15,7 +15,7 @@
 #define QSIZE 1024
 #define GARBAGE 1337
 #define TIMEOUT_LIMIT 100000
-#define TIMEOUT_FACTOR 1.5
+#define TIMEOUT_FACTOR 1.1
 
 static int sk = -1;
 static struct addrinfo hints, *skaddr;
