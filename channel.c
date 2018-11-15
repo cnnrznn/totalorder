@@ -579,9 +579,9 @@ ch_recv(int *res)
         uint32_t type;
 
         // try to recv a message
-        if ((ret = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) > 0) {
+        while ((ret = recvfrom(sk, msg, MSGLEN, flags, (struct sockaddr *)&from, &fromlen)) > 0) {
                 if (rand()%100 < 10)
-                        goto out;
+                        continue;
 
                 addr = (struct sockaddr_in *)&from;
                 type = *((uint32_t*)msg);
@@ -602,8 +602,8 @@ ch_recv(int *res)
 
 out:
         // process the asynchronous queues
-        process_sendq();
         process_recvq();
+        process_sendq();
         ch_deliver(res);
 
         return 0;
